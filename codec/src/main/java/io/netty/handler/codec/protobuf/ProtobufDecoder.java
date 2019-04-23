@@ -20,7 +20,6 @@ import com.google.protobuf.ExtensionRegistryLite;
 import com.google.protobuf.Message;
 import com.google.protobuf.MessageLite;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
@@ -33,7 +32,7 @@ import java.util.List;
 
 /**
  * Decodes a received {@link ByteBuf} into a
- * <a href="https://github.com/google/protobuf">Google Protocol Buffers</a>
+ * <a href="http://code.google.com/p/protobuf/">Google Protocol Buffers</a>
  * {@link Message} and {@link MessageLite}. Please note that this decoder must
  * be used with a proper {@link ByteToMessageDecoder} such as {@link ProtobufVarint32FrameDecoder}
  * or {@link LengthFieldBasedFrameDecoder} if you are using a stream-based
@@ -70,7 +69,7 @@ public class ProtobufDecoder extends MessageToMessageDecoder<ByteBuf> {
     static {
         boolean hasParser = false;
         try {
-            // MessageLite.getParserForType() is not available until protobuf 2.5.0.
+            // MessageLite.getParsetForType() is not available until protobuf 2.5.0.
             MessageLite.class.getDeclaredMethod("getParserForType");
             hasParser = true;
         } catch (Throwable t) {
@@ -112,7 +111,8 @@ public class ProtobufDecoder extends MessageToMessageDecoder<ByteBuf> {
             array = msg.array();
             offset = msg.arrayOffset() + msg.readerIndex();
         } else {
-            array = ByteBufUtil.getBytes(msg, msg.readerIndex(), length, false);
+            array = new byte[length];
+            msg.getBytes(msg.readerIndex(), array, 0, length);
             offset = 0;
         }
 

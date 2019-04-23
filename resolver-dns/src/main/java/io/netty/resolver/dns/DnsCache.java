@@ -16,7 +16,6 @@
 package io.netty.resolver.dns;
 
 import io.netty.channel.EventLoop;
-import io.netty.handler.codec.dns.DnsRecord;
 import io.netty.util.internal.UnstableApi;
 
 import java.net.InetAddress;
@@ -46,33 +45,24 @@ public interface DnsCache {
     /**
      * Return the cached entries for the given hostname.
      * @param hostname the hostname
-     * @param additionals the additional records
      * @return the cached entries
      */
-    List<? extends DnsCacheEntry> get(String hostname, DnsRecord[] additionals);
+    List<DnsCacheEntry> get(String hostname);
 
     /**
-     * Create a new {@link DnsCacheEntry} and cache a resolved address for a given hostname.
+     * Cache a resolved address for a given hostname.
      * @param hostname the hostname
-     * @param additionals the additional records
-     * @param address the resolved address
+     * @param address the resolved adresse
      * @param originalTtl the TLL as returned by the DNS server
      * @param loop the {@link EventLoop} used to register the TTL timeout
-     * @return The {@link DnsCacheEntry} corresponding to this cache entry.
      */
-    DnsCacheEntry cache(String hostname, DnsRecord[] additionals, InetAddress address, long originalTtl,
-                        EventLoop loop);
+    void cache(String hostname, InetAddress address, long originalTtl, EventLoop loop);
 
     /**
      * Cache the resolution failure for a given hostname.
-     * Be aware this <strong>won't</strong> be called with timeout / cancel / transport exceptions.
-      *
      * @param hostname the hostname
-     * @param additionals the additional records
      * @param cause the resolution failure
      * @param loop the {@link EventLoop} used to register the TTL timeout
-     * @return The {@link DnsCacheEntry} corresponding to this cache entry, or {@code null} if this cache doesn't
-     * support caching failed responses.
      */
-    DnsCacheEntry cache(String hostname, DnsRecord[] additionals, Throwable cause, EventLoop loop);
+    void cache(String hostname, Throwable cause, EventLoop loop);
 }

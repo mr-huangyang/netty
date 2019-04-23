@@ -25,7 +25,6 @@ import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
 
 import static io.netty.handler.codec.compression.Bzip2Constants.*;
-import static org.junit.Assert.fail;
 
 public class Bzip2DecoderTest extends AbstractDecoderTest {
 
@@ -44,19 +43,6 @@ public class Bzip2DecoderTest extends AbstractDecoderTest {
         channel = new EmbeddedChannel(new Bzip2Decoder());
     }
 
-    private void writeInboundDestroyAndExpectDecompressionException(ByteBuf in) {
-        try {
-            channel.writeInbound(in);
-        } finally {
-            try {
-                destroyChannel();
-                fail();
-            } catch (DecompressionException ignored) {
-                // expected
-            }
-        }
-    }
-
     @Test
     public void testUnexpectedStreamIdentifier() throws Exception {
         expected.expect(DecompressionException.class);
@@ -64,7 +50,8 @@ public class Bzip2DecoderTest extends AbstractDecoderTest {
 
         ByteBuf in = Unpooled.buffer();
         in.writeLong(1823080128301928729L); //random value
-        writeInboundDestroyAndExpectDecompressionException(in);
+
+        channel.writeInbound(in);
     }
 
     @Test
@@ -153,7 +140,7 @@ public class Bzip2DecoderTest extends AbstractDecoderTest {
         data[11] = 0x77;
 
         ByteBuf in = Unpooled.wrappedBuffer(data);
-        writeInboundDestroyAndExpectDecompressionException(in);
+        channel.writeInbound(in);
     }
 
     @Test
@@ -165,7 +152,7 @@ public class Bzip2DecoderTest extends AbstractDecoderTest {
         data[14] = (byte) 0xFF;
 
         ByteBuf in = Unpooled.wrappedBuffer(data);
-        writeInboundDestroyAndExpectDecompressionException(in);
+        channel.writeInbound(in);
     }
 
     @Override

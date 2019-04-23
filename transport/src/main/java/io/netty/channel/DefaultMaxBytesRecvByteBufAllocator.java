@@ -15,14 +15,11 @@
  */
 package io.netty.channel;
 
-import static io.netty.util.internal.ObjectUtil.checkPositive;
+import java.util.AbstractMap;
+import java.util.Map.Entry;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.util.UncheckedBooleanSupplier;
-
-import java.util.AbstractMap;
-import java.util.Map.Entry;
 
 /**
  * The {@link RecvByteBufAllocator} that yields a buffer size prediction based upon decrementing the value from
@@ -32,17 +29,11 @@ public class DefaultMaxBytesRecvByteBufAllocator implements MaxBytesRecvByteBufA
     private volatile int maxBytesPerRead;
     private volatile int maxBytesPerIndividualRead;
 
-    private final class HandleImpl implements ExtendedHandle {
+    private final class HandleImpl implements Handle {
         private int individualReadMax;
         private int bytesToRead;
         private int lastBytesRead;
         private int attemptBytesRead;
-        private final UncheckedBooleanSupplier defaultMaybeMoreSupplier = new UncheckedBooleanSupplier() {
-            @Override
-            public boolean get() {
-                return attemptBytesRead == lastBytesRead;
-            }
-        };
 
         @Override
         public ByteBuf allocate(ByteBufAllocator alloc) {
@@ -79,13 +70,8 @@ public class DefaultMaxBytesRecvByteBufAllocator implements MaxBytesRecvByteBufA
 
         @Override
         public boolean continueReading() {
-            return continueReading(defaultMaybeMoreSupplier);
-        }
-
-        @Override
-        public boolean continueReading(UncheckedBooleanSupplier maybeMoreDataSupplier) {
             // Keep reading if we are allowed to read more bytes, and our last read filled up the buffer we provided.
-            return bytesToRead > 0 && maybeMoreDataSupplier.get();
+            return bytesToRead > 0 && attemptBytesRead == lastBytesRead;
         }
 
         @Override
@@ -113,7 +99,6 @@ public class DefaultMaxBytesRecvByteBufAllocator implements MaxBytesRecvByteBufA
         this.maxBytesPerIndividualRead = maxBytesPerIndividualRead;
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public Handle newHandle() {
         return new HandleImpl();
@@ -126,7 +111,9 @@ public class DefaultMaxBytesRecvByteBufAllocator implements MaxBytesRecvByteBufA
 
     @Override
     public DefaultMaxBytesRecvByteBufAllocator maxBytesPerRead(int maxBytesPerRead) {
-        checkPositive(maxBytesPerRead, "maxBytesPerRead");
+        if (maxBytesPerRead <= 0) {
+            throw new IllegalArgumentException("maxBytesPerRead: " + maxBytesPerRead + " (expected: > 0)");
+        }
         // There is a dependency between this.maxBytesPerRead and this.maxBytesPerIndividualRead (a < b).
         // Write operations must be synchronized, but independent read operations can just be volatile.
         synchronized (this) {
@@ -149,7 +136,10 @@ public class DefaultMaxBytesRecvByteBufAllocator implements MaxBytesRecvByteBufA
 
     @Override
     public DefaultMaxBytesRecvByteBufAllocator maxBytesPerIndividualRead(int maxBytesPerIndividualRead) {
-        checkPositive(maxBytesPerIndividualRead, "maxBytesPerIndividualRead");
+        if (maxBytesPerIndividualRead <= 0) {
+            throw new IllegalArgumentException(
+                    "maxBytesPerIndividualRead: " + maxBytesPerIndividualRead + " (expected: > 0)");
+        }
         // There is a dependency between this.maxBytesPerRead and this.maxBytesPerIndividualRead (a < b).
         // Write operations must be synchronized, but independent read operations can just be volatile.
         synchronized (this) {
@@ -170,9 +160,14 @@ public class DefaultMaxBytesRecvByteBufAllocator implements MaxBytesRecvByteBufA
         return new AbstractMap.SimpleEntry<Integer, Integer>(maxBytesPerRead, maxBytesPerIndividualRead);
     }
 
-    private static void checkMaxBytesPerReadPair(int maxBytesPerRead, int maxBytesPerIndividualRead) {
-        checkPositive(maxBytesPerRead, "maxBytesPerRead");
-        checkPositive(maxBytesPerIndividualRead, "maxBytesPerIndividualRead");
+    private void checkMaxBytesPerReadPair(int maxBytesPerRead, int maxBytesPerIndividualRead) {
+        if (maxBytesPerRead <= 0) {
+            throw new IllegalArgumentException("maxBytesPerRead: " + maxBytesPerRead + " (expected: > 0)");
+        }
+        if (maxBytesPerIndividualRead <= 0) {
+            throw new IllegalArgumentException(
+                    "maxBytesPerIndividualRead: " + maxBytesPerIndividualRead + " (expected: > 0)");
+        }
         if (maxBytesPerRead < maxBytesPerIndividualRead) {
             throw new IllegalArgumentException(
                     "maxBytesPerRead cannot be less than " +

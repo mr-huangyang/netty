@@ -52,26 +52,6 @@ class ReadOnlyByteBufferBuf extends AbstractReferenceCountedByteBuf {
     protected void deallocate() { }
 
     @Override
-    public boolean isWritable() {
-        return false;
-    }
-
-    @Override
-    public boolean isWritable(int numBytes) {
-        return false;
-    }
-
-    @Override
-    public ByteBuf ensureWritable(int minWritableBytes) {
-        throw new ReadOnlyBufferException();
-    }
-
-    @Override
-    public int ensureWritable(int minWritableBytes, boolean force) {
-        return 1;
-    }
-
-    @Override
     public byte getByte(int index) {
         ensureAccessible();
         return _getByte(index);
@@ -355,11 +335,11 @@ class ReadOnlyByteBufferBuf extends AbstractReferenceCountedByteBuf {
         if (buffer.hasArray()) {
             out.write(buffer.array(), index + buffer.arrayOffset(), length);
         } else {
-            byte[] tmp = ByteBufUtil.threadLocalTempArray(length);
+            byte[] tmp = new byte[length];
             ByteBuffer tmpBuf = internalNioBuffer();
             tmpBuf.clear().position(index);
-            tmpBuf.get(tmp, 0, length);
-            out.write(tmp, 0, length);
+            tmpBuf.get(tmp);
+            out.write(tmp);
         }
         return this;
     }
@@ -436,9 +416,11 @@ class ReadOnlyByteBufferBuf extends AbstractReferenceCountedByteBuf {
             throw new IndexOutOfBoundsException("Too many bytes to read - Need " + (index + length));
         }
 
-        ByteBuf dst = src.isDirect() ? alloc().directBuffer(length) : alloc().heapBuffer(length);
-        dst.writeBytes(src);
-        return dst;
+        ByteBuffer dst = ByteBuffer.allocateDirect(length);
+        dst.put(src);
+        dst.order(order());
+        dst.clear();
+        return new UnpooledDirectByteBuf(alloc(), dst, maxCapacity());
     }
 
     @Override

@@ -149,10 +149,7 @@ public class DefaultFullHttpResponse extends DefaultHttpResponse implements Full
 
     @Override
     public FullHttpResponse replace(ByteBuf content) {
-        FullHttpResponse response = new DefaultFullHttpResponse(protocolVersion(), status(), content,
-                headers().copy(), trailingHeaders().copy());
-        response.setDecoderResult(decoderResult());
-        return response;
+        return new DefaultFullHttpResponse(protocolVersion(), status(), content, headers(), trailingHeaders());
     }
 
     @Override

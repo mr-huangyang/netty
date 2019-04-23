@@ -29,12 +29,11 @@ import io.netty.handler.codec.http.HttpResponseDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.CharsetUtil;
+import io.netty.util.ReferenceCountUtil;
 import org.junit.Assert;
 import org.junit.Test;
 
-import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static io.netty.handler.codec.http.HttpVersion.*;
 
 public class WebSocketServerHandshaker00Test {
 
@@ -48,40 +47,12 @@ public class WebSocketServerHandshaker00Test {
         testPerformOpeningHandshake0(false);
     }
 
-    @Test
-    public void testPerformHandshakeWithoutOriginHeader() {
-        EmbeddedChannel ch = new EmbeddedChannel(
-            new HttpObjectAggregator(42), new HttpRequestDecoder(), new HttpResponseEncoder());
-
-        FullHttpRequest req = new DefaultFullHttpRequest(
-            HTTP_1_1, HttpMethod.GET, "/chat", Unpooled.copiedBuffer("^n:ds[4U", CharsetUtil.US_ASCII));
-
-        req.headers().set(HttpHeaderNames.HOST, "server.example.com");
-        req.headers().set(HttpHeaderNames.UPGRADE, HttpHeaderValues.WEBSOCKET);
-        req.headers().set(HttpHeaderNames.CONNECTION, "Upgrade");
-        req.headers().set(HttpHeaderNames.SEC_WEBSOCKET_KEY1, "4 @1  46546xW%0l 1 5");
-        req.headers().set(HttpHeaderNames.SEC_WEBSOCKET_PROTOCOL, "chat, superchat");
-
-        WebSocketServerHandshaker00 handshaker00 = new WebSocketServerHandshaker00(
-            "ws://example.com/chat", "chat", Integer.MAX_VALUE);
-        try {
-            handshaker00.handshake(ch, req);
-            fail("Expecting WebSocketHandshakeException");
-        } catch (WebSocketHandshakeException e) {
-            assertEquals("Missing origin header, got only "
-                    + "[host, upgrade, connection, sec-websocket-key1, sec-websocket-protocol]",
-                e.getMessage());
-        } finally {
-            req.release();
-        }
-    }
-
     private static void testPerformOpeningHandshake0(boolean subProtocol) {
         EmbeddedChannel ch = new EmbeddedChannel(
                 new HttpObjectAggregator(42), new HttpRequestDecoder(), new HttpResponseEncoder());
 
-        FullHttpRequest req = new DefaultFullHttpRequest(
-                HTTP_1_1, HttpMethod.GET, "/chat", Unpooled.copiedBuffer("^n:ds[4U", CharsetUtil.US_ASCII));
+        FullHttpRequest req = ReferenceCountUtil.releaseLater(new DefaultFullHttpRequest(
+                HTTP_1_1, HttpMethod.GET, "/chat", Unpooled.copiedBuffer("^n:ds[4U", CharsetUtil.US_ASCII)));
 
         req.headers().set(HttpHeaderNames.HOST, "server.example.com");
         req.headers().set(HttpHeaderNames.UPGRADE, HttpHeaderValues.WEBSOCKET);
@@ -114,6 +85,5 @@ public class WebSocketServerHandshaker00Test {
 
         Assert.assertEquals("8jKS'y:G*Co,Wxa-", content.content().toString(CharsetUtil.US_ASCII));
         content.release();
-        req.release();
     }
 }

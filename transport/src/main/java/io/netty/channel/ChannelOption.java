@@ -65,10 +65,7 @@ public class ChannelOption<T> extends AbstractConstant<ChannelOption<T>> {
     /**
      * Creates a new {@link ChannelOption} for the given {@code name} or fail with an
      * {@link IllegalArgumentException} if a {@link ChannelOption} for the given {@code name} exists.
-     *
-     * @deprecated use {@link #valueOf(String)}.
      */
-    @Deprecated
     @SuppressWarnings("unchecked")
     public static <T> ChannelOption<T> newInstance(String name) {
         return (ChannelOption<T>) pool.newInstance(name);
@@ -81,7 +78,6 @@ public class ChannelOption<T> extends AbstractConstant<ChannelOption<T>> {
     public static final ChannelOption<Integer> CONNECT_TIMEOUT_MILLIS = valueOf("CONNECT_TIMEOUT_MILLIS");
     /**
      * @deprecated Use {@link MaxMessagesRecvByteBufAllocator}
-     * and {@link MaxMessagesRecvByteBufAllocator#maxMessagesPerRead(int)}.
      */
     @Deprecated
     public static final ChannelOption<Integer> MAX_MESSAGES_PER_READ = valueOf("MAX_MESSAGES_PER_READ");
@@ -103,9 +99,12 @@ public class ChannelOption<T> extends AbstractConstant<ChannelOption<T>> {
     public static final ChannelOption<Boolean> AUTO_READ = valueOf("AUTO_READ");
 
     /**
+     * @deprecated  Auto close will be removed in a future release.
+     *
      * If {@code true} then the {@link Channel} is closed automatically and immediately on write failure.
      * The default value is {@code true}.
      */
+    @Deprecated
     public static final ChannelOption<Boolean> AUTO_CLOSE = valueOf("AUTO_CLOSE");
 
     public static final ChannelOption<Boolean> SO_BROADCAST = valueOf("SO_BROADCAST");

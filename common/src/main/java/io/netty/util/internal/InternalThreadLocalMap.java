@@ -18,15 +18,12 @@ package io.netty.util.internal;
 
 import io.netty.util.concurrent.FastThreadLocal;
 import io.netty.util.concurrent.FastThreadLocalThread;
-import io.netty.util.internal.logging.InternalLogger;
-import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -38,24 +35,9 @@ import java.util.WeakHashMap;
  */
 public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap {
 
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(InternalThreadLocalMap.class);
-
     private static final int DEFAULT_ARRAY_LIST_INITIAL_CAPACITY = 8;
-    private static final int STRING_BUILDER_INITIAL_SIZE;
-    private static final int STRING_BUILDER_MAX_SIZE;
 
     public static final Object UNSET = new Object();
-
-    private BitSet cleanerFlags;
-
-    static {
-        STRING_BUILDER_INITIAL_SIZE =
-                SystemPropertyUtil.getInt("io.netty.threadLocalMap.stringBuilder.initialSize", 1024);
-        logger.debug("-Dio.netty.threadLocalMap.stringBuilder.initialSize: {}", STRING_BUILDER_INITIAL_SIZE);
-
-        STRING_BUILDER_MAX_SIZE = SystemPropertyUtil.getInt("io.netty.threadLocalMap.stringBuilder.maxSize", 1024 * 4);
-        logger.debug("-Dio.netty.threadLocalMap.stringBuilder.maxSize: {}", STRING_BUILDER_MAX_SIZE);
-    }
 
     public static InternalThreadLocalMap getIfSet() {
         Thread thread = Thread.currentThread();
@@ -181,16 +163,13 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
     }
 
     public StringBuilder stringBuilder() {
-        StringBuilder sb = stringBuilder;
-        if (sb == null) {
-            return stringBuilder = new StringBuilder(STRING_BUILDER_INITIAL_SIZE);
+        StringBuilder builder = stringBuilder;
+        if (builder == null) {
+            stringBuilder = builder = new StringBuilder(512);
+        } else {
+            builder.setLength(0);
         }
-        if (sb.capacity() > STRING_BUILDER_MAX_SIZE) {
-            sb.setLength(STRING_BUILDER_INITIAL_SIZE);
-            sb.trimToSize();
-        }
-        sb.setLength(0);
-        return sb;
+        return builder;
     }
 
     public Map<Charset, CharsetEncoder> charsetEncoderCache() {
@@ -213,15 +192,14 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
         return arrayList(DEFAULT_ARRAY_LIST_INITIAL_CAPACITY);
     }
 
-    @SuppressWarnings("unchecked")
     public <E> ArrayList<E> arrayList(int minCapacity) {
         ArrayList<E> list = (ArrayList<E>) arrayList;
         if (list == null) {
-            arrayList = new ArrayList<Object>(minCapacity);
-            return (ArrayList<E>) arrayList;
+            list = (ArrayList<E>) new ArrayList<Object>(minCapacity);
+        } else {
+            list.clear();
+            list.ensureCapacity(minCapacity);
         }
-        list.clear();
-        list.ensureCapacity(minCapacity);
         return list;
     }
 
@@ -257,12 +235,10 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
         return cache;
     }
 
-    @Deprecated
     public IntegerHolder counterHashCode() {
         return counterHashCode;
     }
 
-    @Deprecated
     public void setCounterHashCode(IntegerHolder counterHashCode) {
         this.counterHashCode = counterHashCode;
     }
@@ -335,16 +311,5 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
     public boolean isIndexedVariableSet(int index) {
         Object[] lookup = indexedVariables;
         return index < lookup.length && lookup[index] != UNSET;
-    }
-
-    public boolean isCleanerFlagSet(int index) {
-        return cleanerFlags != null && cleanerFlags.get(index);
-    }
-
-    public void setCleanerFlag(int index) {
-        if (cleanerFlags == null) {
-            cleanerFlags = new BitSet();
-        }
-        cleanerFlags.set(index);
     }
 }

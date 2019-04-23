@@ -23,13 +23,16 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 import static io.netty.handler.codec.http.HttpHeadersTestUtils.of;
 import static io.netty.util.AsciiString.contentEquals;
 import static java.util.Arrays.asList;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 public class DefaultHttpHeadersTest {
     private static final CharSequence HEADER_NAME = "testHeader";
@@ -40,7 +43,7 @@ public class DefaultHttpHeadersTest {
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void emptyHeaderNameNotAllowed() {
+    public void emtpyHeaderNameNotAllowed() {
         new DefaultHttpHeaders().add(StringUtil.EMPTY_STRING, "foo");
     }
 
@@ -204,36 +207,6 @@ public class DefaultHttpHeadersTest {
         final DefaultHttpHeaders headers = newDefaultDefaultHttpHeaders();
         headers.set(HEADER_NAME, HeaderValue.THREE.asList());
         assertDefaultValues(headers, HeaderValue.THREE);
-    }
-
-    @Test
-    public void toStringOnEmptyHeaders() {
-        assertEquals("DefaultHttpHeaders[]", newDefaultDefaultHttpHeaders().toString());
-    }
-
-    @Test
-    public void toStringOnSingleHeader() {
-        assertEquals("DefaultHttpHeaders[foo: bar]", newDefaultDefaultHttpHeaders()
-                .add("foo", "bar")
-                .toString());
-    }
-
-    @Test
-    public void toStringOnMultipleHeaders() {
-        assertEquals("DefaultHttpHeaders[foo: bar, baz: qix]", newDefaultDefaultHttpHeaders()
-                .add("foo", "bar")
-                .add("baz", "qix")
-                .toString());
-    }
-
-    @Test
-    public void providesHeaderNamesAsArray() throws Exception {
-        Set<String> nettyHeaders = new DefaultHttpHeaders()
-                .add(HttpHeaderNames.CONTENT_LENGTH, 10)
-                .names();
-
-        String[] namesArray = nettyHeaders.toArray(new String[0]);
-        assertArrayEquals(namesArray, new String[] { HttpHeaderNames.CONTENT_LENGTH.toString() });
     }
 
     private static void assertDefaultValues(final DefaultHttpHeaders headers, final HeaderValue headerValue) {

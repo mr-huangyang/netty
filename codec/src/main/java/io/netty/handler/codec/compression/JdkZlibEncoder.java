@@ -225,18 +225,8 @@ public class JdkZlibEncoder extends ZlibEncoder {
         }
 
         deflater.setInput(inAry, offset, len);
-        for (;;) {
+        while (!deflater.needsInput()) {
             deflate(out);
-            if (deflater.needsInput()) {
-                // Consumed everything
-                break;
-            } else {
-                if (!out.isWritable()) {
-                    // We did not consume everything but the buffer is not writable anymore. Increase the capacity to
-                    // make more room.
-                    out.ensureWritable(out.writerIndex());
-                }
-            }
         }
     }
 
@@ -252,8 +242,6 @@ public class JdkZlibEncoder extends ZlibEncoder {
                 case ZLIB:
                     sizeEstimate += 2; // first two magic bytes
                     break;
-                default:
-                    // no op
             }
         }
         return ctx.alloc().heapBuffer(sizeEstimate);

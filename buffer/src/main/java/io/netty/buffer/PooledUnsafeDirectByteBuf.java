@@ -28,6 +28,9 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.ScatteringByteChannel;
 
+/**
+ * nio channel read 默认对应的 byte buffer
+ */
 final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
     private static final Recycler<PooledUnsafeDirectByteBuf> RECYCLER = new Recycler<PooledUnsafeDirectByteBuf>() {
         @Override
@@ -49,9 +52,9 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
     }
 
     @Override
-    void init(PoolChunk<ByteBuffer> chunk, ByteBuffer nioBuffer,
-              long handle, int offset, int length, int maxLength, PoolThreadCache cache) {
-        super.init(chunk, nioBuffer, handle, offset, length, maxLength, cache);
+    void init(PoolChunk<ByteBuffer> chunk, long handle, int offset, int length, int maxLength,
+              PoolThreadCache cache) {
+        super.init(chunk, handle, offset, length, maxLength, cache);
         initMemoryAddress();
     }
 
@@ -61,6 +64,9 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
         initMemoryAddress();
     }
 
+    /**
+     * 内存地址
+     */
     private void initMemoryAddress() {
         memoryAddress = PlatformDependent.directBufferAddress(memory) + offset;
     }
@@ -374,8 +380,7 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
 
     @Override
     public ByteBuf setZero(int index, int length) {
-        checkIndex(index, length);
-        UnsafeByteBufUtil.setZero(addr(index), length);
+        UnsafeByteBufUtil.setZero(this, addr(index), index, length);
         return this;
     }
 
@@ -383,7 +388,7 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
     public ByteBuf writeZero(int length) {
         ensureWritable(length);
         int wIndex = writerIndex;
-        UnsafeByteBufUtil.setZero(addr(wIndex), length);
+        setZero(wIndex, length);
         writerIndex = wIndex + length;
         return this;
     }

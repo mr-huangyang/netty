@@ -69,11 +69,7 @@ public final class SmtpResponseDecoder extends LineBasedFrameDecoder {
                         details.add(detail);
                     }
                 } else {
-                    if (detail == null) {
-                        details = Collections.emptyList();
-                    } else {
-                        details = Collections.singletonList(detail);
-                    }
+                    details = Collections.singletonList(detail);
                 }
                 return new DefaultSmtpResponse(code, details);
             case '-':

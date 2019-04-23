@@ -64,6 +64,10 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
         return (EventLoopGroup) super.parent();
     }
 
+    /**
+     * 调用了父类的方法，父类方法直接返回 this。符合去group化
+     * @return
+     */
     @Override
     public EventLoop next() {
         return (EventLoop) super.next();
@@ -71,12 +75,14 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
 
     @Override
     public ChannelFuture register(Channel channel) {
+        //通过DefaultChannelPromise 把 eventloop 与 channel 绑定
         return register(new DefaultChannelPromise(channel, this));
     }
 
     @Override
     public ChannelFuture register(final ChannelPromise promise) {
         ObjectUtil.checkNotNull(promise, "promise");
+        // *** register 委托到  ChannelPromise的register方法上
         promise.channel().unsafe().register(this, promise);
         return promise;
     }
@@ -146,16 +152,6 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
     @Override
     public int pendingTasks() {
         return super.pendingTasks() + tailTasks.size();
-    }
-
-    /**
-     * Returns the number of {@link Channel}s registered with this {@link EventLoop} or {@code -1}
-     * if operation is not supported. The returned value is not guaranteed to be exact accurate and
-     * should be viewed as a best effort.
-     */
-    @UnstableApi
-    public int registeredChannels() {
-        return -1;
     }
 
     /**

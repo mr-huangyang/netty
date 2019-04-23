@@ -30,12 +30,7 @@ import java.util.List;
 /**
  * Splits a byte stream of JSON objects and arrays into individual objects/arrays and passes them up the
  * {@link ChannelPipeline}.
- * <p>
- * The byte stream is expected to be in UTF-8 character encoding or ASCII. The current implementation
- * uses direct {@code byte} to {@code char} cast and then compares that {@code char} to a few low range
- * ASCII characters like {@code '{'}, {@code '['} or {@code '"'}. UTF-8 is not using low range [0..0x7F]
- * byte values for multibyte codepoint representations therefore fully supported by this implementation.
- * <p>
+ *
  * This class does not do any real parsing or validation. A sequence of bytes is considered a JSON object/array
  * if it contains a matching number of opening and closing braces/brackets. It's up to a subsequent
  * {@link ChannelHandler} to parse the JSON text into a more usable form i.e. a POJO.
@@ -49,8 +44,6 @@ public class JsonObjectDecoder extends ByteToMessageDecoder {
 
     private int openBraces;
     private int idx;
-
-    private int lastReaderIndex;
 
     private int state;
     private boolean insideString;
@@ -93,10 +86,6 @@ public class JsonObjectDecoder extends ByteToMessageDecoder {
         if (state == ST_CORRUPTED) {
             in.skipBytes(in.readableBytes());
             return;
-        }
-
-        if (this.idx > in.readerIndex() && lastReaderIndex != in.readerIndex()) {
-            this.idx = in.readerIndex() + (idx - lastReaderIndex);
         }
 
         // index of next byte to process.
@@ -181,7 +170,6 @@ public class JsonObjectDecoder extends ByteToMessageDecoder {
         } else {
             this.idx = idx;
         }
-        this.lastReaderIndex = in.readerIndex();
     }
 
     /**

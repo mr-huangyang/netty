@@ -17,6 +17,7 @@ package io.netty.util.concurrent;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -26,12 +27,23 @@ import java.util.concurrent.TimeUnit;
  * via its {@link #next()} method. Besides this, it is also responsible for handling their
  * life-cycle and allows shutting them down in a global fashion.
  *
+ * <br/>
+ * 这个类有两个关键字， executor , group. 作为子类的容器而存在.作为一个基础容器，有2种子类。一种仍然作为容器而存在，另一种则包含具体
+ * 业务，弱化了group的含义。
+ * <br/>
+ * event:
+ * <br/>
+ * executor: 继承了 java Executor类，具备执行Runnable的能力，所以本质上是一个线程池。
+ * <br/>
+ * group: 某类的管理容器，从类的结构上来看，表示它管理着自己的子类EventExecutor，是子类的一个容器。
+ *        group 体现在 next() , iterate()方法
+ *
  */
 public interface EventExecutorGroup extends ScheduledExecutorService, Iterable<EventExecutor> {
 
     /**
      * Returns {@code true} if and only if all {@link EventExecutor}s managed by this {@link EventExecutorGroup}
-     * are being {@linkplain #shutdownGracefully() shut down gracefully} or was {@linkplain #isShutdown() shut down}.
+     * are being {@linkplain #shutdownGracefully() shut down gracefuclly} or was {@linkplain #isShutdown() shut down}.
      */
     boolean isShuttingDown();
 
@@ -79,6 +91,7 @@ public interface EventExecutorGroup extends ScheduledExecutorService, Iterable<E
     List<Runnable> shutdownNow();
 
     /**
+     * 这个方法应该体现了 "group" 的含义.next方法并未规定应该如何返回下一个。
      * Returns one of the {@link EventExecutor}s managed by this {@link EventExecutorGroup}.
      */
     EventExecutor next();

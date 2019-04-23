@@ -24,14 +24,14 @@ public class Socks5PasswordAuthRequestDecoderTest {
 
     @Test
     public void testAuthRequestDecoder() {
-        String username = "testUsername";
-        String password = "testPassword";
+        String username = "test";
+        String password = "test";
         Socks5PasswordAuthRequest msg = new DefaultSocks5PasswordAuthRequest(username, password);
         EmbeddedChannel embedder = new EmbeddedChannel(new Socks5PasswordAuthRequestDecoder());
         Socks5CommonTestUtils.writeFromClientToServer(embedder, msg);
         msg = embedder.readInbound();
-        assertEquals(username, msg.username());
-        assertEquals(password, msg.password());
+        assertEquals(msg.username(), username);
+        assertEquals(msg.username(), password);
         assertNull(embedder.readInbound());
     }
 }

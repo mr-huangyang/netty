@@ -76,9 +76,9 @@ public interface Http2Stream {
      * <ul>
      * <li>{@link State#OPEN} if {@link #state()} is {@link State#IDLE} and {@code halfClosed} is {@code false}.</li>
      * <li>{@link State#HALF_CLOSED_LOCAL} if {@link #state()} is {@link State#IDLE} and {@code halfClosed}
-     * is {@code true} and the stream is local. In this state, {@link #isHeadersSent()} is {@code true}</li>
+     * is {@code true} and the stream is local.</li>
      * <li>{@link State#HALF_CLOSED_REMOTE} if {@link #state()} is {@link State#IDLE} and {@code halfClosed}
-     * is {@code true} and the stream is remote. In this state, {@link #isHeadersReceived()} is {@code true}</li>
+     * is {@code true} and the stream is remote.</li>
      * <li>{@link State#RESERVED_LOCAL} if {@link #state()} is {@link State#HALF_CLOSED_REMOTE}.</li>
      * <li>{@link State#RESERVED_REMOTE} if {@link #state()} is {@link State#HALF_CLOSED_LOCAL}.</li>
      * </ul>
@@ -130,48 +130,57 @@ public interface Http2Stream {
     <V> V removeProperty(Http2Connection.PropertyKey key);
 
     /**
-     * Indicates that headers have been sent to the remote endpoint on this stream. The first call to this method would
-     * be for the initial headers (see {@link #isHeadersSent()}} and the second call would indicate the trailers
-     * (see {@link #isTrailersReceived()}).
-     * @param isInformational {@code true} if the headers contain an informational status code (for responses only).
+     * Updates an priority for this stream. Calling this method may affect the structure of the
+     * priority tree.
+     *
+     * @param parentStreamId the parent stream that given stream should depend on. May be {@code 0},
+     *            if the stream has no dependencies and should be an immediate child of the
+     *            connection.
+     * @param weight the weight to be assigned to this stream relative to its parent. This value
+     *            must be between 1 and 256 (inclusive)
+     * @param exclusive indicates that the stream should be the exclusive dependent on its parent.
+     *            This only applies if the stream has a parent.
+     * @return this stream.
      */
-    Http2Stream headersSent(boolean isInformational);
+    Http2Stream setPriority(int parentStreamId, short weight, boolean exclusive) throws Http2Exception;
 
     /**
-     * Indicates whether or not headers were sent to the remote endpoint.
+     * Indicates whether or not this stream is the root node of the priority tree.
      */
-    boolean isHeadersSent();
+    boolean isRoot();
 
     /**
-     * Indicates whether or not trailers were sent to the remote endpoint.
+     * Indicates whether or not this is a leaf node (i.e. {@link #numChildren} is 0) of the priority tree.
      */
-    boolean isTrailersSent();
+    boolean isLeaf();
 
     /**
-     * Indicates that headers have been received. The first call to this method would be for the initial headers
-     * (see {@link #isHeadersReceived()}} and the second call would indicate the trailers
-     * (see {@link #isTrailersReceived()}).
-     * @param isInformational {@code true} if the headers contain an informational status code (for responses only).
+     * Returns weight assigned to the dependency with the parent. The weight will be a value
+     * between 1 and 256.
      */
-    Http2Stream headersReceived(boolean isInformational);
+    short weight();
 
     /**
-     * Indicates whether or not the initial headers have been received.
+     * The parent (i.e. the node in the priority tree on which this node depends), or {@code null}
+     * if this is the root node (i.e. the connection, itself).
      */
-    boolean isHeadersReceived();
+    Http2Stream parent();
 
     /**
-     * Indicates whether or not the trailers have been received.
+     * Indicates whether or not this stream is a descendant in the priority tree from the given stream.
      */
-    boolean isTrailersReceived();
+    boolean isDescendantOf(Http2Stream stream);
 
     /**
-     * Indicates that a push promise was sent to the remote endpoint.
+     * Returns the number of child streams directly dependent on this stream.
      */
-    Http2Stream pushPromiseSent();
+    int numChildren();
 
     /**
-     * Indicates whether or not a push promise was sent to the remote endpoint.
+     * Provide a means of iterating over the children of this stream.
+     *
+     * @param visitor The visitor which will visit each child stream.
+     * @return The stream before iteration stopped or {@code null} if iteration went past the end.
      */
-    boolean isPushPromiseSent();
+    Http2Stream forEachChild(Http2StreamVisitor visitor) throws Http2Exception;
 }

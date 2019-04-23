@@ -21,8 +21,6 @@ import io.netty.util.concurrent.AbstractEventExecutor;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.ProgressivePromise;
 import io.netty.util.concurrent.Promise;
-import io.netty.util.internal.logging.InternalLogger;
-import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 
@@ -65,10 +63,8 @@ public class AbstractSharedExecutorMicrobenchmark extends AbstractMicrobenchmark
      */
     public static final class DelegateHarnessExecutor extends AbstractEventExecutor {
         private static EventLoop executor;
-        private InternalLogger logger = InternalLoggerFactory.getInstance(DelegateHarnessExecutor.class);
-
         public DelegateHarnessExecutor(int maxThreads, String prefix) {
-            logger.debug("Using DelegateHarnessExecutor executor {}", this);
+            System.out.println("Using DelegateHarnessExecutor executor " + this);
         }
 
         /**

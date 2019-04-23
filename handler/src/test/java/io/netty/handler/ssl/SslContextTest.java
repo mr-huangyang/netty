@@ -15,110 +15,74 @@
  */
 package io.netty.handler.ssl;
 
-import io.netty.util.internal.ResourcesUtil;
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.net.ssl.SSLException;
 import java.io.File;
 import java.io.IOException;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
-import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
-
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLException;
-
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assume.assumeNotNull;
 
 public abstract class SslContextTest {
 
     @Test(expected = IOException.class)
     public void testUnencryptedEmptyPassword() throws Exception {
         PrivateKey key = SslContext.toPrivateKey(
-                ResourcesUtil.getFile(getClass(), "test2_unencrypted.pem"), "");
+                new File(getClass().getResource("test2_unencrypted.pem").getFile()), "");
         Assert.assertNotNull(key);
     }
 
     @Test
     public void testUnEncryptedNullPassword() throws Exception {
         PrivateKey key = SslContext.toPrivateKey(
-                ResourcesUtil.getFile(getClass(), "test2_unencrypted.pem"), null);
+                new File(getClass().getResource("test2_unencrypted.pem").getFile()), null);
         Assert.assertNotNull(key);
     }
 
     @Test
     public void testEncryptedEmptyPassword() throws Exception {
         PrivateKey key = SslContext.toPrivateKey(
-                ResourcesUtil.getFile(getClass(), "test_encrypted_empty_pass.pem"), "");
+                new File(getClass().getResource("test_encrypted_empty_pass.pem").getFile()), "");
         Assert.assertNotNull(key);
     }
 
     @Test(expected = InvalidKeySpecException.class)
     public void testEncryptedNullPassword() throws Exception {
         SslContext.toPrivateKey(
-                ResourcesUtil.getFile(getClass(), "test_encrypted_empty_pass.pem"), null);
+                new File(getClass().getResource("test_encrypted_empty_pass.pem").getFile()), null);
     }
 
     @Test
     public void testSslServerWithEncryptedPrivateKey() throws SSLException {
-        File keyFile = ResourcesUtil.getFile(getClass(), "test_encrypted.pem");
-        File crtFile = ResourcesUtil.getFile(getClass(), "test.crt");
+        File keyFile = new File(getClass().getResource("test_encrypted.pem").getFile());
+        File crtFile = new File(getClass().getResource("test.crt").getFile());
 
         newServerContext(crtFile, keyFile, "12345");
     }
 
     @Test
     public void testSslServerWithEncryptedPrivateKey2() throws SSLException {
-        File keyFile = ResourcesUtil.getFile(getClass(), "test2_encrypted.pem");
-        File crtFile = ResourcesUtil.getFile(getClass(), "test2.crt");
+        File keyFile = new File(getClass().getResource("test2_encrypted.pem").getFile());
+        File crtFile = new File(getClass().getResource("test2.crt").getFile());
 
         newServerContext(crtFile, keyFile, "12345");
     }
 
     @Test
     public void testSslServerWithUnencryptedPrivateKey() throws SSLException {
-        File keyFile = ResourcesUtil.getFile(getClass(), "test_unencrypted.pem");
-        File crtFile = ResourcesUtil.getFile(getClass(), "test.crt");
+        File keyFile = new File(getClass().getResource("test_unencrypted.pem").getFile());
+        File crtFile = new File(getClass().getResource("test.crt").getFile());
 
         newServerContext(crtFile, keyFile, null);
     }
 
     @Test(expected = SSLException.class)
     public void testSslServerWithUnencryptedPrivateKeyEmptyPass() throws SSLException {
-        File keyFile = ResourcesUtil.getFile(getClass(), "test_unencrypted.pem");
-        File crtFile = ResourcesUtil.getFile(getClass(), "test.crt");
+        File keyFile = new File(getClass().getResource("test_unencrypted.pem").getFile());
+        File crtFile = new File(getClass().getResource("test.crt").getFile());
 
         newServerContext(crtFile, keyFile, "");
-    }
-
-    @Test
-    public void testSupportedCiphers() throws KeyManagementException, NoSuchAlgorithmException, SSLException {
-        SSLContext jdkSslContext = SSLContext.getInstance("TLS");
-        jdkSslContext.init(null, null, null);
-        SSLEngine sslEngine = jdkSslContext.createSSLEngine();
-
-        String unsupportedCipher = "TLS_DH_anon_WITH_DES_CBC_SHA";
-        IllegalArgumentException exception = null;
-        try {
-            sslEngine.setEnabledCipherSuites(new String[] {unsupportedCipher});
-        } catch (IllegalArgumentException e) {
-            exception = e;
-        }
-        assumeNotNull(exception);
-        File keyFile = ResourcesUtil.getFile(getClass(), "test_unencrypted.pem");
-        File crtFile = ResourcesUtil.getFile(getClass(), "test.crt");
-
-        SslContext sslContext = newServerContext(crtFile, keyFile, null);
-        assertFalse(sslContext.cipherSuites().contains(unsupportedCipher));
-    }
-
-    @Test(expected = CertificateException.class)
-    public void test() throws CertificateException {
-        SslContext.toX509Certificates(new File(getClass().getResource("ec_params_unsupported.pem").getFile()));
     }
 
     protected abstract SslContext newServerContext(File crtFile, File keyFile, String pass) throws SSLException;

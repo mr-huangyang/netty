@@ -27,9 +27,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Abstract base class for {@link EventExecutorGroup} implementations that handles their tasks with multiple threads at
  * the same time.
+ * <br/>
+ * a: 初始化一个EventExecutor数组，一个chooser, next()委托给chooser
+ * <br/>
+ * b: 提供一个newChild方法，由子类实现具体的EventExecutor对象
+ *
  */
 public abstract class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
 
+    /**
+     * children体现了 "group"的意义
+     */
     private final EventExecutor[] children;
     private final Set<EventExecutor> readonlyChildren;
     private final AtomicInteger terminatedChildren = new AtomicInteger();
@@ -73,14 +81,17 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         }
 
         if (executor == null) {
+            // 一个线程执行一个任务: 关注这个类，能过此类为每个 eventloop创建线程
             executor = new ThreadPerTaskExecutor(newDefaultThreadFactory());
         }
-
+        //初始化子类 EventExecutor
         children = new EventExecutor[nThreads];
 
         for (int i = 0; i < nThreads; i ++) {
             boolean success = false;
             try {
+                // **** newChild由具体子类实现,EventExecutor是基类,所有子类共享一个executor
+                //共享的executor.execute()方法调用一次，生成一个线程并启动
                 children[i] = newChild(executor, args);
                 success = true;
             } catch (Exception e) {
@@ -107,7 +118,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
                 }
             }
         }
-
+        // chooser 封装了 next()方法的逻辑,简单逻辑
         chooser = chooserFactory.newChooser(children);
 
         final FutureListener<Object> terminationListener = new FutureListener<Object>() {
@@ -153,6 +164,8 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
     /**
      * Create a new EventExecutor which will later then accessible via the {@link #next()}  method. This method will be
      * called for each thread that will serve this {@link MultithreadEventExecutorGroup}.
+     *
+     * 创建具体的EventExecutor实现类，next()方法调用
      *
      */
     protected abstract EventExecutor newChild(Executor executor, Object... args) throws Exception;

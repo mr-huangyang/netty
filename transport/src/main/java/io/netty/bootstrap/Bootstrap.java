@@ -45,6 +45,8 @@ import java.util.Map.Entry;
  *
  * <p>The {@link #bind()} methods are useful in combination with connectionless transports such as datagram (UDP).
  * For regular TCP connections, please use the provided {@link #connect()} methods.</p>
+ * <br/>
+ * a: connect() 里会创建channel并绑定到event loop,event loop会绑定到java nio
  */
 public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
 
@@ -52,6 +54,9 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
 
     private static final AddressResolverGroup<?> DEFAULT_RESOLVER = DefaultAddressResolverGroup.INSTANCE;
 
+    /**
+     * config 只是包装了Bootstrap，用以对外暴露一些配置
+     */
     private final BootstrapConfig config = new BootstrapConfig(this);
 
     @SuppressWarnings("unchecked")
@@ -91,7 +96,7 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
     }
 
     /**
-     * @see #remoteAddress(SocketAddress)
+     * @see {@link #remoteAddress(SocketAddress)}
      */
     public Bootstrap remoteAddress(String inetHost, int inetPort) {
         remoteAddress = InetSocketAddress.createUnresolved(inetHost, inetPort);
@@ -99,7 +104,7 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
     }
 
     /**
-     * @see #remoteAddress(SocketAddress)
+     * @see {@link #remoteAddress(SocketAddress)}
      */
     public Bootstrap remoteAddress(InetAddress inetHost, int inetPort) {
         remoteAddress = new InetSocketAddress(inetHost, inetPort);
@@ -157,12 +162,15 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
     }
 
     /**
-     * @see #connect()
+     * @see {@link #connect()}
      */
     private ChannelFuture doResolveAndConnect(final SocketAddress remoteAddress, final SocketAddress localAddress) {
+        //创建-初始化-注册到eventloop->注册java nio
+        //底层是在event loop执行的 register
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
 
+        //channel 注册完成后，开始 connect
         if (regFuture.isDone()) {
             if (!regFuture.isSuccess()) {
                 return regFuture;
@@ -174,7 +182,7 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
             regFuture.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
-                    // Directly obtain the cause and do a null check so we only need one volatile read in case of a
+                    // Direclty obtain the cause and do a null check so we only need one volatile read in case of a
                     // failure.
                     Throwable cause = future.cause();
                     if (cause != null) {
@@ -239,6 +247,12 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
         return promise;
     }
 
+    /**
+     * ####### connect的入口
+     * @param remoteAddress
+     * @param localAddress
+     * @param connectPromise
+     */
     private static void doConnect(
             final SocketAddress remoteAddress, final SocketAddress localAddress, final ChannelPromise connectPromise) {
 
@@ -266,7 +280,15 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
 
         final Map<ChannelOption<?>, Object> options = options0();
         synchronized (options) {
-            setChannelOptions(channel, options, logger);
+            for (Entry<ChannelOption<?>, Object> e: options.entrySet()) {
+                try {
+                    if (!channel.config().setOption((ChannelOption<Object>) e.getKey(), e.getValue())) {
+                        logger.warn("Unknown channel option: " + e);
+                    }
+                } catch (Throwable t) {
+                    logger.warn("Failed to set a channel option: " + channel, t);
+                }
+            }
         }
 
         final Map<AttributeKey<?>, Object> attrs = attrs0();

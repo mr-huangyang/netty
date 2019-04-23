@@ -18,6 +18,7 @@ package io.netty.handler.codec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufHolder;
 import io.netty.buffer.CompositeByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
@@ -26,9 +27,6 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.util.ReferenceCountUtil;
 
 import java.util.List;
-
-import static io.netty.buffer.Unpooled.EMPTY_BUFFER;
-import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 
 /**
  * An abstract {@link ChannelHandler} that aggregates a series of message objects into a single aggregated message.
@@ -62,8 +60,6 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
     private ChannelHandlerContext ctx;
     private ChannelFutureListener continueResponseWriteListener;
 
-    private boolean aggregating;
-
     /**
      * Creates a new instance.
      *
@@ -84,7 +80,9 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
     }
 
     private static void validateMaxContentLength(int maxContentLength) {
-        checkPositiveOrZero(maxContentLength, "maxContentLength");
+        if (maxContentLength < 0) {
+            throw new IllegalArgumentException("maxContentLength: " + maxContentLength + " (expected: >= 0)");
+        }
     }
 
     @Override
@@ -97,20 +95,7 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
         @SuppressWarnings("unchecked")
         I in = (I) msg;
 
-        if (isAggregated(in)) {
-            return false;
-        }
-
-        // NOTE: It's tempting to make this check only if aggregating is false. There are however
-        // side conditions in decode(...) in respect to large messages.
-        if (isStartMessage(in)) {
-            aggregating = true;
-            return true;
-        } else if (aggregating && isContentMessage(in)) {
-            return true;
-        }
-
-        return false;
+        return (isContentMessage(in) || isStartMessage(in)) && !isAggregated(in);
     }
 
     /**
@@ -189,10 +174,6 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
         }
     }
 
-    /**
-     * @deprecated This method will be removed in future releases.
-     */
-    @Deprecated
     public final boolean isHandlingOversizedMessage() {
         return handlingOversizedMessage;
     }
@@ -206,13 +187,11 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
 
     @Override
     protected void decode(final ChannelHandlerContext ctx, I msg, List<Object> out) throws Exception {
-        assert aggregating;
+        O currentMessage = this.currentMessage;
 
         if (isStartMessage(msg)) {
             handlingOversizedMessage = false;
             if (currentMessage != null) {
-                currentMessage.release();
-                currentMessage = null;
                 throw new MessageAggregationException();
             }
 
@@ -257,13 +236,14 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
 
             if (m instanceof DecoderResultProvider && !((DecoderResultProvider) m).decoderResult().isSuccess()) {
                 O aggregated;
-                if (m instanceof ByteBufHolder) {
+                if (m instanceof ByteBufHolder && ((ByteBufHolder) m).content().isReadable()) {
                     aggregated = beginAggregation(m, ((ByteBufHolder) m).content().retain());
                 } else {
-                    aggregated = beginAggregation(m, EMPTY_BUFFER);
+                    aggregated = beginAggregation(m, Unpooled.EMPTY_BUFFER);
                 }
-                finishAggregation0(aggregated);
+                finishAggregation(aggregated);
                 out.add(aggregated);
+                this.currentMessage = null;
                 return;
             }
 
@@ -272,21 +252,30 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
             if (m instanceof ByteBufHolder) {
                 appendPartialContent(content, ((ByteBufHolder) m).content());
             }
-            currentMessage = beginAggregation(m, content);
+            this.currentMessage = beginAggregation(m, content);
+
         } else if (isContentMessage(msg)) {
-            if (currentMessage == null) {
-                // it is possible that a TooLongFrameException was already thrown but we can still discard data
-                // until the begging of the next request/response.
+            @SuppressWarnings("unchecked")
+            final C m = (C) msg;
+            final ByteBuf partialContent = ((ByteBufHolder) msg).content();
+            final boolean isLastContentMessage = isLastContentMessage(m);
+            if (handlingOversizedMessage) {
+                if (isLastContentMessage) {
+                    this.currentMessage = null;
+                }
+                // already detect the too long frame so just discard the content
                 return;
+            }
+
+            if (currentMessage == null) {
+                throw new MessageAggregationException();
             }
 
             // Merge the received chunk into the content of the current message.
             CompositeByteBuf content = (CompositeByteBuf) currentMessage.content();
 
-            @SuppressWarnings("unchecked")
-            final C m = (C) msg;
             // Handle oversized message.
-            if (content.readableBytes() > maxContentLength - m.content().readableBytes()) {
+            if (content.readableBytes() > maxContentLength - partialContent.readableBytes()) {
                 // By convention, full message type extends first message type.
                 @SuppressWarnings("unchecked")
                 S s = (S) currentMessage;
@@ -295,7 +284,7 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
             }
 
             // Append the content of the chunk.
-            appendPartialContent(content, m.content());
+            appendPartialContent(content, partialContent);
 
             // Give the subtypes a chance to merge additional information such as trailing headers.
             aggregate(currentMessage, m);
@@ -310,18 +299,18 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
                     }
                     last = true;
                 } else {
-                    last = isLastContentMessage(m);
+                    last = isLastContentMessage;
                 }
             } else {
-                last = isLastContentMessage(m);
+                last = isLastContentMessage;
             }
 
             if (last) {
-                finishAggregation0(currentMessage);
+                finishAggregation(currentMessage);
 
                 // All done
                 out.add(currentMessage);
-                currentMessage = null;
+                this.currentMessage = null;
             }
         } else {
             throw new MessageAggregationException();
@@ -330,7 +319,8 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
 
     private static void appendPartialContent(CompositeByteBuf content, ByteBuf partialContent) {
         if (partialContent.isReadable()) {
-            content.addComponent(true, partialContent.retain());
+            partialContent.retain();
+            content.addComponent(true, partialContent);
         }
     }
 
@@ -354,11 +344,10 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
             throws Exception;
 
     /**
-     * Determine if the channel should be closed after the result of
-     * {@link #newContinueResponse(Object, int, ChannelPipeline)} is written.
-     * @param msg The return value from {@link #newContinueResponse(Object, int, ChannelPipeline)}.
-     * @return {@code true} if the channel should be closed after the result of
-     * {@link #newContinueResponse(Object, int, ChannelPipeline)} is written. {@code false} otherwise.
+     * Determine if the channel should be closed after the result of {@link #newContinueResponse(Object)} is written.
+     * @param msg The return value from {@link #newContinueResponse(Object)}.
+     * @return {@code true} if the channel should be closed after the result of {@link #newContinueResponse(Object)}
+     * is written. {@code false} otherwise.
      */
     protected abstract boolean closeAfterContinueResponse(Object msg) throws Exception;
 
@@ -366,7 +355,7 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
      * Determine if all objects for the current request/response should be ignored or not.
      * Messages will stop being ignored the next time {@link #isContentMessage(Object)} returns {@code true}.
      *
-     * @param msg The return value from {@link #newContinueResponse(Object, int, ChannelPipeline)}.
+     * @param msg The return value from {@link #newContinueResponse(Object)}.
      * @return {@code true} if all objects for the current request/response should be ignored or not.
      * {@code false} otherwise.
      */
@@ -386,11 +375,6 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
      * that the content message provides to {@code aggregated}.
      */
     protected void aggregate(O aggregated, C content) throws Exception { }
-
-    private void finishAggregation0(O aggregated) throws Exception {
-        aggregating = false;
-        finishAggregation(aggregated);
-    }
 
     /**
      * Invoked when the specified {@code aggregated} message is about to be passed to the next handler in the pipeline.
@@ -421,24 +405,14 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
     }
 
     @Override
-    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-        // We might need keep reading the channel until the full message is aggregated.
-        //
-        // See https://github.com/netty/netty/issues/6583
-        if (currentMessage != null && !ctx.channel().config().isAutoRead()) {
-            ctx.read();
-        }
-        ctx.fireChannelReadComplete();
-    }
-
-    @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        try {
-            // release current message if it is not null as it may be a left-over
-            super.channelInactive(ctx);
-        } finally {
-            releaseCurrentMessage();
+        // release current message if it is not null as it may be a left-over
+        if (currentMessage != null) {
+            currentMessage.release();
+            currentMessage = null;
         }
+
+        super.channelInactive(ctx);
     }
 
     @Override
@@ -448,21 +422,13 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
 
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
-        try {
-            super.handlerRemoved(ctx);
-        } finally {
-            // release current message if it is not null as it may be a left-over as there is not much more we can do in
-            // this case
-            releaseCurrentMessage();
-        }
-    }
+        super.handlerRemoved(ctx);
 
-    private void releaseCurrentMessage() {
+        // release current message if it is not null as it may be a left-over as there is not much more we can do in
+        // this case
         if (currentMessage != null) {
             currentMessage.release();
             currentMessage = null;
-            handlingOversizedMessage = false;
-            aggregating = false;
         }
     }
 }

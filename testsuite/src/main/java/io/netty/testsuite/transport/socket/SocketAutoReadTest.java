@@ -28,15 +28,19 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.RecvByteBufAllocator;
 import io.netty.util.ReferenceCountUtil;
-import io.netty.util.UncheckedBooleanSupplier;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class SocketAutoReadTest extends AbstractSocketTest {
     @Test
@@ -49,7 +53,7 @@ public class SocketAutoReadTest extends AbstractSocketTest {
         testAutoReadOffDuringReadOnlyReadsOneTime(false, sb, cb);
     }
 
-    private static void testAutoReadOffDuringReadOnlyReadsOneTime(boolean readOutsideEventLoopThread,
+    private void testAutoReadOffDuringReadOnlyReadsOneTime(boolean readOutsideEventLoopThread,
                                                            ServerBootstrap sb, Bootstrap cb) throws Throwable {
         Channel serverChannel = null;
         Channel clientChannel = null;
@@ -66,13 +70,14 @@ public class SocketAutoReadTest extends AbstractSocketTest {
 
             serverChannel = sb.bind().syncUninterruptibly().channel();
 
-            cb.option(ChannelOption.AUTO_READ, true)
+            cb.remoteAddress(serverChannel.localAddress())
+                    .option(ChannelOption.AUTO_READ, true)
                     // We want to ensure that we attempt multiple individual read operations per read loop so we can
                     // test the auto read feature being turned off when data is first read.
                     .option(ChannelOption.RCVBUF_ALLOCATOR, new TestRecvByteBufAllocator())
                     .handler(clientInitializer);
 
-            clientChannel = cb.connect(serverChannel.localAddress()).syncUninterruptibly().channel();
+            clientChannel = cb.connect().syncUninterruptibly().channel();
 
             // 3 bytes means 3 independent reads for TestRecvByteBufAllocator
             clientChannel.writeAndFlush(Unpooled.wrappedBuffer(new byte[3]));
@@ -161,8 +166,8 @@ public class SocketAutoReadTest extends AbstractSocketTest {
      */
     private static final class TestRecvByteBufAllocator implements RecvByteBufAllocator {
         @Override
-        public ExtendedHandle newHandle() {
-            return new ExtendedHandle() {
+        public Handle newHandle() {
+            return new Handle() {
                 private ChannelConfig config;
                 private int attemptedBytesRead;
                 private int lastBytesRead;
@@ -208,11 +213,6 @@ public class SocketAutoReadTest extends AbstractSocketTest {
 
                 @Override
                 public boolean continueReading() {
-                    return config.isAutoRead();
-                }
-
-                @Override
-                public boolean continueReading(UncheckedBooleanSupplier maybeMoreDataSupplier) {
                     return config.isAutoRead();
                 }
 

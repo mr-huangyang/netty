@@ -15,15 +15,11 @@
  */
 package io.netty.handler.codec.http;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.util.AsciiString;
-import io.netty.util.CharsetUtil;
-
 import static io.netty.handler.codec.http.HttpConstants.SP;
-import static io.netty.util.ByteProcessor.FIND_ASCII_SPACE;
-import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
-import static java.lang.Integer.parseInt;
+import io.netty.buffer.ByteBuf;
+import io.netty.util.AsciiString;
+import io.netty.util.ByteProcessor;
+import io.netty.util.CharsetUtil;
 
 /**
  * The response code and its description of HTTP or its derived protocols, such as
@@ -122,11 +118,6 @@ public class HttpResponseStatus implements Comparable<HttpResponseStatus> {
      * 307 Temporary Redirect (since HTTP/1.1)
      */
     public static final HttpResponseStatus TEMPORARY_REDIRECT = newStatus(307, "Temporary Redirect");
-
-    /**
-     * 308 Permanent Redirect (RFC7538)
-     */
-    public static final HttpResponseStatus PERMANENT_REDIRECT = newStatus(308, "Permanent Redirect");
 
     /**
      * 400 Bad Request
@@ -327,15 +318,10 @@ public class HttpResponseStatus implements Comparable<HttpResponseStatus> {
 
     /**
      * Returns the {@link HttpResponseStatus} represented by the specified code.
-     * If the specified code is a standard HTTP status code, a cached instance
+     * If the specified code is a standard HTTP getStatus code, a cached instance
      * will be returned.  Otherwise, a new instance will be returned.
      */
     public static HttpResponseStatus valueOf(int code) {
-        HttpResponseStatus status = valueOf0(code);
-        return status != null ? status : new HttpResponseStatus(code);
-    }
-
-    private static HttpResponseStatus valueOf0(int code) {
         switch (code) {
         case 100:
             return CONTINUE;
@@ -373,8 +359,6 @@ public class HttpResponseStatus implements Comparable<HttpResponseStatus> {
             return USE_PROXY;
         case 307:
             return TEMPORARY_REDIRECT;
-        case 308:
-            return PERMANENT_REDIRECT;
         case 400:
             return BAD_REQUEST;
         case 401:
@@ -450,25 +434,12 @@ public class HttpResponseStatus implements Comparable<HttpResponseStatus> {
         case 511:
             return NETWORK_AUTHENTICATION_REQUIRED;
         }
-        return null;
+
+        return new HttpResponseStatus(code);
     }
 
     /**
-     * Returns the {@link HttpResponseStatus} represented by the specified {@code code} and {@code reasonPhrase}.
-     * If the specified code is a standard HTTP status {@code code} and {@code reasonPhrase}, a cached instance
-     * will be returned. Otherwise, a new instance will be returned.
-     * @param code The response code value.
-     * @param reasonPhrase The response code reason phrase.
-     * @return the {@link HttpResponseStatus} represented by the specified {@code code} and {@code reasonPhrase}.
-     */
-    public static HttpResponseStatus valueOf(int code, String reasonPhrase) {
-        HttpResponseStatus responseStatus = valueOf0(code);
-        return responseStatus != null && responseStatus.reasonPhrase().contentEquals(reasonPhrase) ? responseStatus :
-                new HttpResponseStatus(code, reasonPhrase);
-    }
-
-    /**
-     * Parses the specified HTTP status line into a {@link HttpResponseStatus}. The expected formats of the line are:
+     * Parses the specified HTTP status line into a {@link HttpResponseStatus}.  The expected formats of the line are:
      * <ul>
      * <li>{@code statusCode} (e.g. 200)</li>
      * <li>{@code statusCode} {@code reasonPhrase} (e.g. 404 Not Found)</li>
@@ -477,25 +448,79 @@ public class HttpResponseStatus implements Comparable<HttpResponseStatus> {
      * @throws IllegalArgumentException if the specified status line is malformed
      */
     public static HttpResponseStatus parseLine(CharSequence line) {
-        return (line instanceof AsciiString) ? parseLine((AsciiString) line) : parseLine(line.toString());
+        String status = line.toString();
+        try {
+            int space = status.indexOf(' ');
+            if (space == -1) {
+                return valueOf(Integer.parseInt(status));
+            } else {
+                int code = Integer.parseInt(status.substring(0, space));
+                String reasonPhrase = status.substring(space + 1);
+                HttpResponseStatus responseStatus = valueOf(code);
+                if (responseStatus.reasonPhrase().contentEquals(reasonPhrase)) {
+                    return responseStatus;
+                } else {
+                    return new HttpResponseStatus(code, reasonPhrase);
+                }
+            }
+        } catch (Exception e) {
+            throw new IllegalArgumentException("malformed status line: " + status, e);
+        }
     }
 
-    /**
-     * Parses the specified HTTP status line into a {@link HttpResponseStatus}. The expected formats of the line are:
-     * <ul>
-     * <li>{@code statusCode} (e.g. 200)</li>
-     * <li>{@code statusCode} {@code reasonPhrase} (e.g. 404 Not Found)</li>
-     * </ul>
-     *
-     * @throws IllegalArgumentException if the specified status line is malformed
-     */
-    public static HttpResponseStatus parseLine(String line) {
-        try {
-            int space = line.indexOf(' ');
-            return space == -1 ? valueOf(parseInt(line)) :
-                    valueOf(parseInt(line.substring(0, space)), line.substring(space + 1));
-        } catch (Exception e) {
-            throw new IllegalArgumentException("malformed status line: " + line, e);
+    private static final class HttpStatusLineProcessor implements ByteProcessor {
+        private static final byte ASCII_SPACE = (byte) ' ';
+        private final AsciiString string;
+        private int i;
+        /**
+         * 0 = New or havn't seen {@link ASCII_SPACE}.
+         * 1 = Last byte was {@link ASCII_SPACE}.
+         * 2 = Terminal State. Processed the byte after {@link ASCII_SPACE}, and parsed the status line.
+         * 3 = Terminal State. There was no byte after {@link ASCII_SPACE} but status has been parsed with what we saw.
+         */
+        private int state;
+        private HttpResponseStatus status;
+
+        public HttpStatusLineProcessor(AsciiString string) {
+            this.string = string;
+        }
+
+        @Override
+        public boolean process(byte value) {
+            switch (state) {
+            case 0:
+                if (value == ASCII_SPACE) {
+                    state = 1;
+                }
+                break;
+            case 1:
+                parseStatus(i);
+                state = 2;
+                return false;
+            default:
+                break;
+            }
+            ++i;
+            return true;
+        }
+
+        private void parseStatus(int codeEnd) {
+            int code = string.parseInt(0, codeEnd);
+            status = valueOf(code);
+            if (codeEnd < string.length()) {
+                String actualReason = string.toString(codeEnd + 1, string.length());
+                if (!status.reasonPhrase().contentEquals(actualReason)) {
+                    status = new HttpResponseStatus(code, actualReason);
+                }
+            }
+        }
+
+        public HttpResponseStatus status() {
+            if (state <= 1) {
+                parseStatus(string.length());
+                state = 3;
+            }
+            return status;
         }
     }
 
@@ -510,8 +535,13 @@ public class HttpResponseStatus implements Comparable<HttpResponseStatus> {
      */
     public static HttpResponseStatus parseLine(AsciiString line) {
         try {
-            int space = line.forEachByte(FIND_ASCII_SPACE);
-            return space == -1 ? valueOf(line.parseInt()) : valueOf(line.parseInt(0, space), line.toString(space + 1));
+            HttpStatusLineProcessor processor = new HttpStatusLineProcessor(line);
+            line.forEachByte(processor);
+            HttpResponseStatus status = processor.status();
+            if (status == null) {
+                throw new IllegalArgumentException("unable to get status after parsing input");
+            }
+            return status;
         } catch (Exception e) {
             throw new IllegalArgumentException("malformed status line: " + line, e);
         }
@@ -539,7 +569,10 @@ public class HttpResponseStatus implements Comparable<HttpResponseStatus> {
     }
 
     private HttpResponseStatus(int code, String reasonPhrase, boolean bytes) {
-        checkPositiveOrZero(code, "code");
+        if (code < 0) {
+            throw new IllegalArgumentException(
+                    "code: " + code + " (expected: 0+)");
+        }
 
         if (reasonPhrase == null) {
             throw new NullPointerException("reasonPhrase");
@@ -557,11 +590,10 @@ public class HttpResponseStatus implements Comparable<HttpResponseStatus> {
         }
 
         this.code = code;
-        String codeString = Integer.toString(code);
-        codeAsText = new AsciiString(codeString);
+        codeAsText = new AsciiString(Integer.toString(code));
         this.reasonPhrase = reasonPhrase;
         if (bytes) {
-            this.bytes = (codeString + ' ' + reasonPhrase).getBytes(CharsetUtil.US_ASCII);
+            this.bytes = (code + " " + reasonPhrase).getBytes(CharsetUtil.US_ASCII);
         } else {
             this.bytes = null;
         }
@@ -628,8 +660,8 @@ public class HttpResponseStatus implements Comparable<HttpResponseStatus> {
 
     @Override
     public String toString() {
-        return new StringBuilder(reasonPhrase.length() + 4)
-            .append(codeAsText)
+        return new StringBuilder(reasonPhrase.length() + 5)
+            .append(code)
             .append(' ')
             .append(reasonPhrase)
             .toString();
@@ -637,9 +669,9 @@ public class HttpResponseStatus implements Comparable<HttpResponseStatus> {
 
     void encode(ByteBuf buf) {
         if (bytes == null) {
-            ByteBufUtil.copy(codeAsText, buf);
+            HttpUtil.encodeAscii0(String.valueOf(code()), buf);
             buf.writeByte(SP);
-            buf.writeCharSequence(reasonPhrase, CharsetUtil.US_ASCII);
+            HttpUtil.encodeAscii0(String.valueOf(reasonPhrase()), buf);
         } else {
             buf.writeBytes(bytes);
         }

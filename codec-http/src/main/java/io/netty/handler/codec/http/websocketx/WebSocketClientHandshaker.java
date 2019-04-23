@@ -33,16 +33,11 @@ import io.netty.handler.codec.http.HttpRequestEncoder;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseDecoder;
 import io.netty.handler.codec.http.HttpScheme;
-import io.netty.util.NetUtil;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.ThrowableUtil;
 
 import java.net.URI;
 import java.nio.channels.ClosedChannelException;
-import java.util.Locale;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 /**
  * Base class for web socket client handshake implementations
@@ -51,24 +46,11 @@ public abstract class WebSocketClientHandshaker {
     private static final ClosedChannelException CLOSED_CHANNEL_EXCEPTION = ThrowableUtil.unknownStackTrace(
             new ClosedChannelException(), WebSocketClientHandshaker.class, "processHandshake(...)");
 
-    private static final String HTTP_SCHEME_PREFIX = HttpScheme.HTTP + "://";
-    private static final String HTTPS_SCHEME_PREFIX = HttpScheme.HTTPS + "://";
-    protected static final int DEFAULT_FORCE_CLOSE_TIMEOUT_MILLIS = 10000;
-
     private final URI uri;
 
     private final WebSocketVersion version;
 
     private volatile boolean handshakeComplete;
-
-    private volatile long forceCloseTimeoutMillis = DEFAULT_FORCE_CLOSE_TIMEOUT_MILLIS;
-
-    private volatile int forceCloseInit;
-
-    private static final AtomicIntegerFieldUpdater<WebSocketClientHandshaker> FORCE_CLOSE_INIT_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(WebSocketClientHandshaker.class, "forceCloseInit");
-
-    private volatile boolean forceCloseComplete;
 
     private final String expectedSubprotocol;
 
@@ -95,35 +77,11 @@ public abstract class WebSocketClientHandshaker {
      */
     protected WebSocketClientHandshaker(URI uri, WebSocketVersion version, String subprotocol,
                                         HttpHeaders customHeaders, int maxFramePayloadLength) {
-        this(uri, version, subprotocol, customHeaders, maxFramePayloadLength, DEFAULT_FORCE_CLOSE_TIMEOUT_MILLIS);
-    }
-
-    /**
-     * Base constructor
-     *
-     * @param uri
-     *            URL for web socket communications. e.g "ws://myhost.com/mypath". Subsequent web socket frames will be
-     *            sent to this URL.
-     * @param version
-     *            Version of web socket specification to use to connect to the server
-     * @param subprotocol
-     *            Sub protocol request sent to the server.
-     * @param customHeaders
-     *            Map of custom headers to add to the client request
-     * @param maxFramePayloadLength
-     *            Maximum length of a frame's payload
-     * @param forceCloseTimeoutMillis
-     *            Close the connection if it was not closed by the server after timeout specified
-     */
-    protected WebSocketClientHandshaker(URI uri, WebSocketVersion version, String subprotocol,
-                                        HttpHeaders customHeaders, int maxFramePayloadLength,
-                                        long forceCloseTimeoutMillis) {
         this.uri = uri;
         this.version = version;
         expectedSubprotocol = subprotocol;
         this.customHeaders = customHeaders;
         this.maxFramePayloadLength = maxFramePayloadLength;
-        this.forceCloseTimeoutMillis = forceCloseTimeoutMillis;
     }
 
     /**
@@ -175,29 +133,6 @@ public abstract class WebSocketClientHandshaker {
 
     private void setActualSubprotocol(String actualSubprotocol) {
         this.actualSubprotocol = actualSubprotocol;
-    }
-
-    public long forceCloseTimeoutMillis() {
-        return forceCloseTimeoutMillis;
-    }
-
-    /**
-     * Flag to indicate if the closing handshake was initiated because of timeout.
-     * For testing only.
-     */
-    protected boolean isForceCloseComplete() {
-        return forceCloseComplete;
-    }
-
-    /**
-     * Sets timeout to close the connection if it was not closed by the server.
-     *
-     * @param forceCloseTimeoutMillis
-     *            Close the connection if it was not closed by the server after timeout specified
-     */
-    public WebSocketClientHandshaker setForceCloseTimeoutMillis(long forceCloseTimeoutMillis) {
-        this.forceCloseTimeoutMillis = forceCloseTimeoutMillis;
-        return this;
     }
 
     /**
@@ -448,7 +383,7 @@ public abstract class WebSocketClientHandshaker {
     }
 
     /**
-     * Verify the {@link FullHttpResponse} and throws a {@link WebSocketHandshakeException} if something is wrong.
+     * Verfiy the {@link FullHttpResponse} and throws a {@link WebSocketHandshakeException} if something is wrong.
      */
     protected abstract void verify(FullHttpResponse response);
 
@@ -491,46 +426,7 @@ public abstract class WebSocketClientHandshaker {
         if (channel == null) {
             throw new NullPointerException("channel");
         }
-        channel.writeAndFlush(frame, promise);
-        applyForceCloseTimeout(channel, promise);
-        return promise;
-    }
-
-    private void applyForceCloseTimeout(final Channel channel, ChannelFuture flushFuture) {
-        final long forceCloseTimeoutMillis = this.forceCloseTimeoutMillis;
-        final WebSocketClientHandshaker handshaker = this;
-        if (forceCloseTimeoutMillis <= 0 || !channel.isActive() || forceCloseInit != 0) {
-            return;
-        }
-
-        flushFuture.addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                // If flush operation failed, there is no reason to expect
-                // a server to receive CloseFrame. Thus this should be handled
-                // by the application separately.
-                // Also, close might be called twice from different threads.
-                if (future.isSuccess() && channel.isActive() &&
-                        FORCE_CLOSE_INIT_UPDATER.compareAndSet(handshaker, 0, 1)) {
-                    final Future<?> forceCloseFuture = channel.eventLoop().schedule(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (channel.isActive()) {
-                                channel.close();
-                                forceCloseComplete = true;
-                            }
-                        }
-                    }, forceCloseTimeoutMillis, TimeUnit.MILLISECONDS);
-
-                    channel.closeFuture().addListener(new ChannelFutureListener() {
-                        @Override
-                        public void operationComplete(ChannelFuture future) throws Exception {
-                            forceCloseFuture.cancel(false);
-                        }
-                    });
-                }
-            }
-        });
+        return channel.writeAndFlush(frame, promise);
     }
 
     /**
@@ -538,7 +434,7 @@ public abstract class WebSocketClientHandshaker {
      */
     static String rawPath(URI wsURL) {
         String path = wsURL.getRawPath();
-        String query = wsURL.getRawQuery();
+        String query = wsURL.getQuery();
         if (query != null && !query.isEmpty()) {
             path = path + '?' + query;
         }
@@ -546,52 +442,25 @@ public abstract class WebSocketClientHandshaker {
         return path == null || path.isEmpty() ? "/" : path;
     }
 
-    static CharSequence websocketHostValue(URI wsURL) {
-        int port = wsURL.getPort();
-        if (port == -1) {
-            return wsURL.getHost();
+    static int websocketPort(URI wsURL) {
+        // Format request
+        int wsPort = wsURL.getPort();
+        // check if the URI contained a port if not set the correct one depending on the schema.
+        // See https://github.com/netty/netty/pull/1558
+        if (wsPort == -1) {
+            return "wss".equals(wsURL.getScheme()) ? HttpScheme.HTTPS.port() : HttpScheme.HTTP.port();
         }
-        String host = wsURL.getHost();
-        if (port == HttpScheme.HTTP.port()) {
-            return HttpScheme.HTTP.name().contentEquals(wsURL.getScheme())
-                    || WebSocketScheme.WS.name().contentEquals(wsURL.getScheme()) ?
-                    host : NetUtil.toSocketAddressString(host, port);
-        }
-        if (port == HttpScheme.HTTPS.port()) {
-            return HttpScheme.HTTPS.name().contentEquals(wsURL.getScheme())
-                    || WebSocketScheme.WSS.name().contentEquals(wsURL.getScheme()) ?
-                    host : NetUtil.toSocketAddressString(host, port);
-        }
-
-        // if the port is not standard (80/443) its needed to add the port to the header.
-        // See http://tools.ietf.org/html/rfc6454#section-6.2
-        return NetUtil.toSocketAddressString(host, port);
+        return wsPort;
     }
 
-    static CharSequence websocketOriginValue(URI wsURL) {
-        String scheme = wsURL.getScheme();
-        final String schemePrefix;
-        int port = wsURL.getPort();
-        final int defaultPort;
-        if (WebSocketScheme.WSS.name().contentEquals(scheme)
-            || HttpScheme.HTTPS.name().contentEquals(scheme)
-            || (scheme == null && port == WebSocketScheme.WSS.port())) {
-
-            schemePrefix = HTTPS_SCHEME_PREFIX;
-            defaultPort = WebSocketScheme.WSS.port();
-        } else {
-            schemePrefix = HTTP_SCHEME_PREFIX;
-            defaultPort = WebSocketScheme.WS.port();
-        }
-
-        // Convert uri-host to lower case (by RFC 6454, chapter 4 "Origin of a URI")
-        String host = wsURL.getHost().toLowerCase(Locale.US);
-
-        if (port != defaultPort && port != -1) {
+    static CharSequence websocketOriginValue(String host, int wsPort) {
+        String originValue = (wsPort == HttpScheme.HTTPS.port() ?
+                HttpScheme.HTTPS.name() : HttpScheme.HTTP.name()) + "://" + host;
+        if (wsPort != HttpScheme.HTTP.port() && wsPort != HttpScheme.HTTPS.port()) {
             // if the port is not standard (80/443) its needed to add the port to the header.
             // See http://tools.ietf.org/html/rfc6454#section-6.2
-            return schemePrefix + NetUtil.toSocketAddressString(host, port);
+            return originValue + ':' + wsPort;
         }
-        return schemePrefix + host;
+        return originValue;
     }
 }

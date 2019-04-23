@@ -16,10 +16,6 @@
 
 package io.netty.util.internal;
 
-import io.netty.util.NetUtil;
-import io.netty.util.internal.logging.InternalLogger;
-import io.netty.util.internal.logging.InternalLoggerFactory;
-
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
@@ -29,13 +25,20 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import static io.netty.util.internal.EmptyArrays.EMPTY_BYTES;
+import io.netty.util.NetUtil;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 
 public final class MacAddressUtil {
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(MacAddressUtil.class);
 
-    private static final int EUI64_MAC_ADDRESS_LENGTH = 8;
-    private static final int EUI48_MAC_ADDRESS_LENGTH = 6;
+    /**
+     * Length of a valid MAC address.
+     */
+    public static final int MAC_ADDRESS_LENGTH = 8;
+
+    private static final byte[] NOT_FOUND = { -1 };
+
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(MacAddressUtil.class);
 
     /**
      * Obtains the best MAC address found on local network interfaces.
@@ -46,23 +49,20 @@ public final class MacAddressUtil {
      */
     public static byte[] bestAvailableMac() {
         // Find the best MAC address available.
-        byte[] bestMacAddr = EMPTY_BYTES;
+        byte[] bestMacAddr = NOT_FOUND;
         InetAddress bestInetAddr = NetUtil.LOCALHOST4;
 
         // Retrieve the list of available network interfaces.
         Map<NetworkInterface, InetAddress> ifaces = new LinkedHashMap<NetworkInterface, InetAddress>();
         try {
-            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-            if (interfaces != null) {
-                while (interfaces.hasMoreElements()) {
-                    NetworkInterface iface = interfaces.nextElement();
-                    // Use the interface with proper INET addresses only.
-                    Enumeration<InetAddress> addrs = SocketUtils.addressesFromNetworkInterface(iface);
-                    if (addrs.hasMoreElements()) {
-                        InetAddress a = addrs.nextElement();
-                        if (!a.isLoopbackAddress()) {
-                            ifaces.put(iface, a);
-                        }
+            for (Enumeration<NetworkInterface> i = NetworkInterface.getNetworkInterfaces(); i.hasMoreElements();) {
+                NetworkInterface iface = i.nextElement();
+                // Use the interface with proper INET addresses only.
+                Enumeration<InetAddress> addrs = iface.getInetAddresses();
+                if (addrs.hasMoreElements()) {
+                    InetAddress a = addrs.nextElement();
+                    if (!a.isLoopbackAddress()) {
+                        ifaces.put(iface, a);
                     }
                 }
             }
@@ -79,7 +79,7 @@ public final class MacAddressUtil {
 
             byte[] macAddr;
             try {
-                macAddr = SocketUtils.hardwareAddressFromNetworkInterface(iface);
+                macAddr = iface.getHardwareAddress();
             } catch (SocketException e) {
                 logger.debug("Failed to get the hardware address of a network interface: {}", iface, e);
                 continue;
@@ -110,13 +110,13 @@ public final class MacAddressUtil {
             }
         }
 
-        if (bestMacAddr == EMPTY_BYTES) {
+        if (bestMacAddr == NOT_FOUND) {
             return null;
         }
 
         switch (bestMacAddr.length) {
-            case EUI48_MAC_ADDRESS_LENGTH: // EUI-48 - convert to EUI-64
-                byte[] newAddr = new byte[EUI64_MAC_ADDRESS_LENGTH];
+            case 6: // EUI-48 - convert to EUI-64
+                byte[] newAddr = new byte[MAC_ADDRESS_LENGTH];
                 System.arraycopy(bestMacAddr, 0, newAddr, 0, 3);
                 newAddr[3] = (byte) 0xFF;
                 newAddr[4] = (byte) 0xFE;
@@ -124,71 +124,10 @@ public final class MacAddressUtil {
                 bestMacAddr = newAddr;
                 break;
             default: // Unknown
-                bestMacAddr = Arrays.copyOf(bestMacAddr, EUI64_MAC_ADDRESS_LENGTH);
+                bestMacAddr = Arrays.copyOf(bestMacAddr, MAC_ADDRESS_LENGTH);
         }
 
         return bestMacAddr;
-    }
-
-    /**
-     * Returns the result of {@link #bestAvailableMac()} if non-{@code null} otherwise returns a random EUI-64 MAC
-     * address.
-     */
-    public static byte[] defaultMachineId() {
-        byte[] bestMacAddr = bestAvailableMac();
-        if (bestMacAddr == null) {
-            bestMacAddr = new byte[EUI64_MAC_ADDRESS_LENGTH];
-            PlatformDependent.threadLocalRandom().nextBytes(bestMacAddr);
-            logger.warn(
-                    "Failed to find a usable hardware address from the network interfaces; using random bytes: {}",
-                    formatAddress(bestMacAddr));
-        }
-        return bestMacAddr;
-    }
-
-    /**
-     * Parse a EUI-48, MAC-48, or EUI-64 MAC address from a {@link String} and return it as a {@code byte[]}.
-     * @param value The string representation of the MAC address.
-     * @return The byte representation of the MAC address.
-     */
-    public static byte[] parseMAC(String value) {
-        final byte[] machineId;
-        final char separator;
-        switch (value.length()) {
-            case 17:
-                separator = value.charAt(2);
-                validateMacSeparator(separator);
-                machineId = new byte[EUI48_MAC_ADDRESS_LENGTH];
-                break;
-            case 23:
-                separator = value.charAt(2);
-                validateMacSeparator(separator);
-                machineId = new byte[EUI64_MAC_ADDRESS_LENGTH];
-                break;
-            default:
-                throw new IllegalArgumentException("value is not supported [MAC-48, EUI-48, EUI-64]");
-        }
-
-        final int end = machineId.length - 1;
-        int j = 0;
-        for (int i = 0; i < end; ++i, j += 3) {
-            final int sIndex = j + 2;
-            machineId[i] = StringUtil.decodeHexByte(value, j);
-            if (value.charAt(sIndex) != separator) {
-                throw new IllegalArgumentException("expected separator '" + separator + " but got '" +
-                        value.charAt(sIndex) + "' at index: " + sIndex);
-            }
-        }
-
-        machineId[end] = StringUtil.decodeHexByte(value, j);
-
-        return machineId;
-    }
-
-    private static void validateMacSeparator(char separator) {
-        if (separator != ':' && separator != '-') {
-            throw new IllegalArgumentException("unsupported separator: " + separator + " (expected: [:-])");
-        }
     }
 
     /**
@@ -206,9 +145,13 @@ public final class MacAddressUtil {
     /**
      * @return positive - current is better, 0 - cannot tell from MAC addr, negative - candidate is better.
      */
-    // visible for testing
-    static int compareAddresses(byte[] current, byte[] candidate) {
-        if (candidate == null || candidate.length < EUI48_MAC_ADDRESS_LENGTH) {
+    private static int compareAddresses(byte[] current, byte[] candidate) {
+        if (candidate == null) {
+            return 1;
+        }
+
+        // Must be EUI-48 or longer.
+        if (candidate.length < 6) {
             return 1;
         }
 
@@ -231,18 +174,18 @@ public final class MacAddressUtil {
         }
 
         // Prefer globally unique address.
-        if ((candidate[0] & 2) == 0) {
-            if (current.length != 0 && (current[0] & 2) == 0) {
+        if ((current[0] & 2) == 0) {
+            if ((candidate[0] & 2) == 0) {
                 // Both current and candidate are globally unique addresses.
                 return 0;
             } else {
-                // Only candidate is globally unique.
-                return -1;
-            }
-        } else {
-            if (current.length != 0 && (current[0] & 2) == 0) {
                 // Only current is globally unique.
                 return 1;
+            }
+        } else {
+            if ((candidate[0] & 2) == 0) {
+                // Only candidate is globally unique.
+                return -1;
             } else {
                 // Both current and candidate are non-unique.
                 return 0;

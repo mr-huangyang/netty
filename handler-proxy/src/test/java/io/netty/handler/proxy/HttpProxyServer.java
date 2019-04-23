@@ -33,7 +33,6 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.CharsetUtil;
-import io.netty.util.internal.SocketUtils;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -121,7 +120,7 @@ final class HttpProxyServer extends ProxyServer {
                 String uri = req.uri();
                 int lastColonPos = uri.lastIndexOf(':');
                 assertThat(lastColonPos, is(greaterThan(0)));
-                intermediaryDestination = SocketUtils.socketAddress(
+                intermediaryDestination = new InetSocketAddress(
                         uri.substring(0, lastColonPos), Integer.parseInt(uri.substring(lastColonPos + 1)));
             }
 

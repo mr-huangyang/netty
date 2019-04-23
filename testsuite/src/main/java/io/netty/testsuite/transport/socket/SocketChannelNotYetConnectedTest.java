@@ -20,6 +20,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.socket.SocketChannel;
 import org.junit.Test;
 
+import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.nio.channels.NotYetConnectedException;
 
@@ -33,7 +34,7 @@ public class SocketChannelNotYetConnectedTest extends AbstractClientSocketTest {
 
     public void testShutdownNotYetConnected(Bootstrap cb) throws Throwable {
         SocketChannel ch = (SocketChannel) cb.handler(new ChannelInboundHandlerAdapter())
-                .bind(newSocketAddress()).syncUninterruptibly().channel();
+                .bind(new InetSocketAddress(0)).syncUninterruptibly().channel();
         try {
             try {
                 ch.shutdownInput().syncUninterruptibly();

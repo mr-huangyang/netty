@@ -16,8 +16,6 @@
 
 package io.netty.buffer;
 
-import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
-
 import io.netty.util.ByteProcessor;
 import io.netty.util.internal.EmptyArrays;
 import io.netty.util.internal.PlatformDependent;
@@ -38,7 +36,6 @@ import java.nio.charset.Charset;
  */
 public final class EmptyByteBuf extends ByteBuf {
 
-    static final int EMPTY_BYTE_BUF_HASH_CODE = 1;
     private static final ByteBuffer EMPTY_BYTE_BUFFER = ByteBuffer.allocateDirect(0);
     private static final long EMPTY_BYTE_BUFFER_ADDRESS;
 
@@ -225,7 +222,9 @@ public final class EmptyByteBuf extends ByteBuf {
 
     @Override
     public ByteBuf ensureWritable(int minWritableBytes) {
-        checkPositiveOrZero(minWritableBytes, "minWritableBytes");
+        if (minWritableBytes < 0) {
+            throw new IllegalArgumentException("minWritableBytes: " + minWritableBytes + " (expected: >= 0)");
+        }
         if (minWritableBytes != 0) {
             throw new IndexOutOfBoundsException();
         }
@@ -234,7 +233,9 @@ public final class EmptyByteBuf extends ByteBuf {
 
     @Override
     public int ensureWritable(int minWritableBytes, boolean force) {
-        checkPositiveOrZero(minWritableBytes, "minWritableBytes");
+        if (minWritableBytes < 0) {
+            throw new IllegalArgumentException("minWritableBytes: " + minWritableBytes + " (expected: >= 0)");
+        }
 
         if (minWritableBytes == 0) {
             return 0;
@@ -759,7 +760,7 @@ public final class EmptyByteBuf extends ByteBuf {
 
     @Override
     public ByteBuf writeBytes(ByteBuf src) {
-        return checkLength(src.readableBytes());
+        throw new IndexOutOfBoundsException();
     }
 
     @Override
@@ -975,7 +976,7 @@ public final class EmptyByteBuf extends ByteBuf {
 
     @Override
     public int hashCode() {
-        return EMPTY_BYTE_BUF_HASH_CODE;
+        return 0;
     }
 
     @Override
@@ -1046,7 +1047,9 @@ public final class EmptyByteBuf extends ByteBuf {
     }
 
     private ByteBuf checkIndex(int index, int length) {
-        checkPositiveOrZero(length, "length");
+        if (length < 0) {
+            throw new IllegalArgumentException("length: " + length);
+        }
         if (index != 0 || length != 0) {
             throw new IndexOutOfBoundsException();
         }
@@ -1054,7 +1057,9 @@ public final class EmptyByteBuf extends ByteBuf {
     }
 
     private ByteBuf checkLength(int length) {
-        checkPositiveOrZero(length, "length");
+        if (length < 0) {
+            throw new IllegalArgumentException("length: " + length + " (expected: >= 0)");
+        }
         if (length != 0) {
             throw new IndexOutOfBoundsException();
         }

@@ -31,7 +31,6 @@ import java.util.Map;
 import static io.netty.channel.ChannelOption.SO_BACKLOG;
 import static io.netty.channel.ChannelOption.SO_RCVBUF;
 import static io.netty.channel.ChannelOption.SO_REUSEADDR;
-import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 
 /**
  * The default {@link ServerSocketChannelConfig} implementation.
@@ -142,7 +141,9 @@ public class DefaultServerSocketChannelConfig extends DefaultChannelConfig
 
     @Override
     public ServerSocketChannelConfig setBacklog(int backlog) {
-        checkPositiveOrZero(backlog, "backlog");
+        if (backlog < 0) {
+            throw new IllegalArgumentException("backlog: " + backlog);
+        }
         this.backlog = backlog;
         return this;
     }
@@ -185,12 +186,14 @@ public class DefaultServerSocketChannelConfig extends DefaultChannelConfig
     }
 
     @Override
+    @Deprecated
     public ServerSocketChannelConfig setWriteBufferHighWaterMark(int writeBufferHighWaterMark) {
         super.setWriteBufferHighWaterMark(writeBufferHighWaterMark);
         return this;
     }
 
     @Override
+    @Deprecated
     public ServerSocketChannelConfig setWriteBufferLowWaterMark(int writeBufferLowWaterMark) {
         super.setWriteBufferLowWaterMark(writeBufferLowWaterMark);
         return this;

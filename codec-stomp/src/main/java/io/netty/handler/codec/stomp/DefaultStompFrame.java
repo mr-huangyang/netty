@@ -31,16 +31,10 @@ public class DefaultStompFrame extends DefaultStompHeadersSubframe implements St
     }
 
     public DefaultStompFrame(StompCommand command, ByteBuf content) {
-        this(command, content, null);
-    }
-
-    DefaultStompFrame(StompCommand command, ByteBuf content, DefaultStompHeaders headers) {
-        super(command, headers);
-
+        super(command);
         if (content == null) {
             throw new NullPointerException("content");
         }
-
         this.content = content;
     }
 
@@ -66,7 +60,7 @@ public class DefaultStompFrame extends DefaultStompHeadersSubframe implements St
 
     @Override
     public StompFrame replace(ByteBuf content) {
-        return new DefaultStompFrame(command, content, headers.copy());
+        return new DefaultStompFrame(command, content);
     }
 
     @Override

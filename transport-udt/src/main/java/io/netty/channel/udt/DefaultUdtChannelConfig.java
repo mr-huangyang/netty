@@ -39,10 +39,7 @@ import static io.netty.channel.udt.UdtChannelOption.SYSTEM_SEND_BUFFER_SIZE;
 
 /**
  * The default {@link UdtChannelConfig} implementation.
- *
- * @deprecated The UDT transport is no longer maintained and will be removed.
  */
-@Deprecated
 public class DefaultUdtChannelConfig extends DefaultChannelConfig implements
         UdtChannelConfig {
 
@@ -288,12 +285,14 @@ public class DefaultUdtChannelConfig extends DefaultChannelConfig implements
     }
 
     @Override
+    @Deprecated
     public UdtChannelConfig setWriteBufferLowWaterMark(int writeBufferLowWaterMark) {
         super.setWriteBufferLowWaterMark(writeBufferLowWaterMark);
         return this;
     }
 
     @Override
+    @Deprecated
     public UdtChannelConfig setWriteBufferHighWaterMark(int writeBufferHighWaterMark) {
         super.setWriteBufferHighWaterMark(writeBufferHighWaterMark);
         return this;

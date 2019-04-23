@@ -15,8 +15,6 @@
  */
 package io.netty.handler.codec;
 
-import static io.netty.util.internal.ObjectUtil.checkPositive;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
@@ -68,6 +66,10 @@ import java.util.List;
  * Some methods such as {@link ByteBuf#readBytes(int)} will cause a memory leak if the returned buffer
  * is not released or added to the <tt>out</tt> {@link List}. Use derived buffers like {@link ByteBuf#readSlice(int)}
  * to avoid leaking memory.
+ * <br/>
+ * {@link ByteToMessageDecoder} 用于读取一个完整的frame。读取到后把完整的数据写入 out 参数中,传递到后面的handler
+ * <br/>
+ * 实现 decode方法
  */
 public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter {
 
@@ -77,28 +79,23 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
     public static final Cumulator MERGE_CUMULATOR = new Cumulator() {
         @Override
         public ByteBuf cumulate(ByteBufAllocator alloc, ByteBuf cumulation, ByteBuf in) {
-            try {
-                final ByteBuf buffer;
-                if (cumulation.writerIndex() > cumulation.maxCapacity() - in.readableBytes()
-                    || cumulation.refCnt() > 1 || cumulation.isReadOnly()) {
-                    // Expand cumulation (by replace it) when either there is not more room in the buffer
-                    // or if the refCnt is greater then 1 which may happen when the user use slice().retain() or
-                    // duplicate().retain() or if its read-only.
-                    //
-                    // See:
-                    // - https://github.com/netty/netty/issues/2327
-                    // - https://github.com/netty/netty/issues/1764
-                    buffer = expandCumulation(alloc, cumulation, in.readableBytes());
-                } else {
-                    buffer = cumulation;
-                }
-                buffer.writeBytes(in);
-                return buffer;
-            } finally {
-                // We must release in in all cases as otherwise it may produce a leak if writeBytes(...) throw
-                // for whatever release (for example because of OutOfMemoryError)
-                in.release();
+            ByteBuf buffer;
+            if (cumulation.writerIndex() > cumulation.maxCapacity() - in.readableBytes()
+                    || cumulation.refCnt() > 1) {
+                // Expand cumulation (by replace it) when either there is not more room in the buffer
+                // or if the refCnt is greater then 1 which may happen when the user use slice().retain() or
+                // duplicate().retain().
+                //
+                // See:
+                // - https://github.com/netty/netty/issues/2327
+                // - https://github.com/netty/netty/issues/1764
+                buffer = expandCumulation(alloc, cumulation, in.readableBytes());
+            } else {
+                buffer = cumulation;
             }
+            buffer.writeBytes(in);
+            in.release();
+            return buffer;
         }
     };
 
@@ -111,62 +108,41 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
         @Override
         public ByteBuf cumulate(ByteBufAllocator alloc, ByteBuf cumulation, ByteBuf in) {
             ByteBuf buffer;
-            try {
-                if (cumulation.refCnt() > 1) {
-                    // Expand cumulation (by replace it) when the refCnt is greater then 1 which may happen when the
-                    // user use slice().retain() or duplicate().retain().
-                    //
-                    // See:
-                    // - https://github.com/netty/netty/issues/2327
-                    // - https://github.com/netty/netty/issues/1764
-                    buffer = expandCumulation(alloc, cumulation, in.readableBytes());
-                    buffer.writeBytes(in);
+            if (cumulation.refCnt() > 1) {
+                // Expand cumulation (by replace it) when the refCnt is greater then 1 which may happen when the user
+                // use slice().retain() or duplicate().retain().
+                //
+                // See:
+                // - https://github.com/netty/netty/issues/2327
+                // - https://github.com/netty/netty/issues/1764
+                buffer = expandCumulation(alloc, cumulation, in.readableBytes());
+                buffer.writeBytes(in);
+                in.release();
+            } else {
+                CompositeByteBuf composite;
+                if (cumulation instanceof CompositeByteBuf) {
+                    composite = (CompositeByteBuf) cumulation;
                 } else {
-                    CompositeByteBuf composite;
-                    if (cumulation instanceof CompositeByteBuf) {
-                        composite = (CompositeByteBuf) cumulation;
-                    } else {
-                        composite = alloc.compositeBuffer(Integer.MAX_VALUE);
-                        composite.addComponent(true, cumulation);
-                    }
-                    composite.addComponent(true, in);
-                    in = null;
-                    buffer = composite;
+                    composite = alloc.compositeBuffer(Integer.MAX_VALUE);
+                    composite.addComponent(true, cumulation);
                 }
-                return buffer;
-            } finally {
-                if (in != null) {
-                    // We must release if the ownership was not transferred as otherwise it may produce a leak if
-                    // writeBytes(...) throw for whatever release (for example because of OutOfMemoryError).
-                    in.release();
-                }
+                composite.addComponent(true, in);
+                buffer = composite;
             }
+            return buffer;
         }
     };
-
-    private static final byte STATE_INIT = 0;
-    private static final byte STATE_CALLING_CHILD_DECODE = 1;
-    private static final byte STATE_HANDLER_REMOVED_PENDING = 2;
 
     ByteBuf cumulation;
     private Cumulator cumulator = MERGE_CUMULATOR;
     private boolean singleDecode;
     private boolean decodeWasNull;
     private boolean first;
-    /**
-     * A bitmask where the bits are defined as
-     * <ul>
-     *     <li>{@link #STATE_INIT}</li>
-     *     <li>{@link #STATE_CALLING_CHILD_DECODE}</li>
-     *     <li>{@link #STATE_HANDLER_REMOVED_PENDING}</li>
-     * </ul>
-     */
-    private byte decodeState = STATE_INIT;
     private int discardAfterReads = 16;
     private int numReads;
 
     protected ByteToMessageDecoder() {
-        ensureNotSharable();
+        CodecUtil.ensureNotSharable(this);
     }
 
     /**
@@ -204,7 +180,9 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
      * The default is {@code 16}.
      */
     public void setDiscardAfterReads(int discardAfterReads) {
-        checkPositive(discardAfterReads, "discardAfterReads");
+        if (discardAfterReads <= 0) {
+            throw new IllegalArgumentException("discardAfterReads must be > 0");
+        }
         this.discardAfterReads = discardAfterReads;
     }
 
@@ -233,10 +211,6 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
 
     @Override
     public final void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
-        if (decodeState == STATE_CALLING_CHILD_DECODE) {
-            decodeState = STATE_HANDLER_REMOVED_PENDING;
-            return;
-        }
         ByteBuf buf = cumulation;
         if (buf != null) {
             // Directly set this to null so we are sure we not access it in any other method here anymore.
@@ -263,6 +237,12 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
      */
     protected void handlerRemoved0(ChannelHandlerContext ctx) throws Exception { }
 
+    /**
+     * ##### 重要
+     * @param ctx
+     * @param msg
+     * @throws Exception
+     */
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof ByteBuf) {
@@ -278,8 +258,8 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
                 callDecode(ctx, cumulation, out);
             } catch (DecoderException e) {
                 throw e;
-            } catch (Exception e) {
-                throw new DecoderException(e);
+            } catch (Throwable t) {
+                throw new DecoderException(t);
             } finally {
                 if (cumulation != null && !cumulation.isReadable()) {
                     numReads = 0;
@@ -438,7 +418,7 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
                 }
 
                 int oldInputLength = in.readableBytes();
-                decodeRemovalReentryProtection(ctx, in, out);
+                decode(ctx, in, out);
 
                 // Check if this handler was removed before continuing the loop.
                 // If it was removed, it is not safe to continue to operate on the buffer.
@@ -459,7 +439,7 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
                 if (oldInputLength == in.readableBytes()) {
                     throw new DecoderException(
                             StringUtil.simpleClassName(getClass()) +
-                                    ".decode() did not read anything but decoded a message.");
+                            ".decode() did not read anything but decoded a message.");
                 }
 
                 if (isSingleDecode()) {
@@ -468,7 +448,7 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
             }
         } catch (DecoderException e) {
             throw e;
-        } catch (Exception cause) {
+        } catch (Throwable cause) {
             throw new DecoderException(cause);
         }
     }
@@ -481,33 +461,9 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
      * @param ctx           the {@link ChannelHandlerContext} which this {@link ByteToMessageDecoder} belongs to
      * @param in            the {@link ByteBuf} from which to read data
      * @param out           the {@link List} to which decoded messages should be added
-     * @throws Exception    is thrown if an error occurs
+     * @throws Exception    is thrown if an error accour
      */
     protected abstract void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception;
-
-    /**
-     * Decode the from one {@link ByteBuf} to an other. This method will be called till either the input
-     * {@link ByteBuf} has nothing to read when return from this method or till nothing was read from the input
-     * {@link ByteBuf}.
-     *
-     * @param ctx           the {@link ChannelHandlerContext} which this {@link ByteToMessageDecoder} belongs to
-     * @param in            the {@link ByteBuf} from which to read data
-     * @param out           the {@link List} to which decoded messages should be added
-     * @throws Exception    is thrown if an error occurs
-     */
-    final void decodeRemovalReentryProtection(ChannelHandlerContext ctx, ByteBuf in, List<Object> out)
-            throws Exception {
-        decodeState = STATE_CALLING_CHILD_DECODE;
-        try {
-            decode(ctx, in, out);
-        } finally {
-            boolean removePending = decodeState == STATE_HANDLER_REMOVED_PENDING;
-            decodeState = STATE_INIT;
-            if (removePending) {
-                handlerRemoved(ctx);
-            }
-        }
-    }
 
     /**
      * Is called one last time when the {@link ChannelHandlerContext} goes in-active. Which means the
@@ -520,7 +476,7 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
         if (in.isReadable()) {
             // Only call decode() if there is something left in the buffer to decode.
             // See https://github.com/netty/netty/issues/4386
-            decodeRemovalReentryProtection(ctx, in, out);
+            decode(ctx, in, out);
         }
     }
 

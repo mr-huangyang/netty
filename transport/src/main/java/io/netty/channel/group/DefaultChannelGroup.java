@@ -126,12 +126,16 @@ public class DefaultChannelGroup extends AbstractSet<Channel> implements Channel
 
     @Override
     public boolean contains(Object o) {
-        if (o instanceof ServerChannel) {
-            return serverChannels.containsValue(o);
-        } else if (o instanceof Channel) {
-            return nonServerChannels.containsValue(o);
+        if (o instanceof Channel) {
+            Channel c = (Channel) o;
+            if (o instanceof ServerChannel) {
+                return serverChannels.containsValue(c);
+            } else {
+                return nonServerChannels.containsValue(c);
+            }
+        } else {
+            return false;
         }
-        return false;
     }
 
     @Override

@@ -17,9 +17,7 @@ package io.netty.channel.socket.nio;
 
 import io.netty.channel.ChannelException;
 import io.netty.channel.ChannelMetadata;
-import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelOutboundBuffer;
-import io.netty.util.internal.SocketUtils;
 import io.netty.channel.nio.AbstractNioMessageChannel;
 import io.netty.channel.socket.DefaultServerSocketChannelConfig;
 import io.netty.channel.socket.ServerSocketChannelConfig;
@@ -36,7 +34,6 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.SelectorProvider;
 import java.util.List;
-import java.util.Map;
 
 /**
  * A {@link io.netty.channel.socket.ServerSocketChannel} implementation which uses
@@ -106,9 +103,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
 
     @Override
     public boolean isActive() {
-        // As java.nio.ServerSocketChannel.isBound() will continue to return true even after the channel was closed
-        // we will also need to check if it is open.
-        return isOpen() && javaChannel().socket().isBound();
+        return javaChannel().socket().isBound();
     }
 
     @Override
@@ -123,7 +118,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
 
     @Override
     protected SocketAddress localAddress0() {
-        return SocketUtils.localSocketAddress(javaChannel().socket());
+        return javaChannel().socket().getLocalSocketAddress();
     }
 
     @Override
@@ -140,12 +135,19 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
         javaChannel().close();
     }
 
+    /**
+     * #!! 接收外部连接请求，创建NioSocketChannel
+     * @param buf
+     * @return
+     * @throws Exception
+     */
     @Override
     protected int doReadMessages(List<Object> buf) throws Exception {
-        SocketChannel ch = SocketUtils.accept(javaChannel());
+        SocketChannel ch = javaChannel().accept();
 
         try {
             if (ch != null) {
+                //创建 nio socket channel
                 buf.add(new NioSocketChannel(this, ch));
                 return 1;
             }
@@ -194,7 +196,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
         throw new UnsupportedOperationException();
     }
 
-    private final class NioServerSocketChannelConfig extends DefaultServerSocketChannelConfig {
+    private final class NioServerSocketChannelConfig  extends DefaultServerSocketChannelConfig {
         private NioServerSocketChannelConfig(NioServerSocketChannel channel, ServerSocket javaSocket) {
             super(channel, javaSocket);
         }
@@ -203,40 +205,5 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
         protected void autoReadCleared() {
             clearReadPending();
         }
-
-        @Override
-        public <T> boolean setOption(ChannelOption<T> option, T value) {
-            if (PlatformDependent.javaVersion() >= 7 && option instanceof NioChannelOption) {
-                return NioChannelOption.setOption(jdkChannel(), (NioChannelOption<T>) option, value);
-            }
-            return super.setOption(option, value);
-        }
-
-        @Override
-        public <T> T getOption(ChannelOption<T> option) {
-            if (PlatformDependent.javaVersion() >= 7 && option instanceof NioChannelOption) {
-                return NioChannelOption.getOption(jdkChannel(), (NioChannelOption<T>) option);
-            }
-            return super.getOption(option);
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        public Map<ChannelOption<?>, Object> getOptions() {
-            if (PlatformDependent.javaVersion() >= 7) {
-                return getOptions(super.getOptions(), NioChannelOption.getOptions(jdkChannel()));
-            }
-            return super.getOptions();
-        }
-
-        private ServerSocketChannel jdkChannel() {
-            return ((NioServerSocketChannel) channel).javaChannel();
-        }
-    }
-
-    // Override just to to be able to call directly via unit tests.
-    @Override
-    protected boolean closeOnReadError(Throwable cause) {
-        return super.closeOnReadError(cause);
     }
 }

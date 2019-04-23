@@ -29,46 +29,53 @@ import java.util.Map;
  */
 @UnstableApi
 public final class SmtpCommand {
-    public static final SmtpCommand EHLO = new SmtpCommand(AsciiString.cached("EHLO"));
-    public static final SmtpCommand HELO = new SmtpCommand(AsciiString.cached("HELO"));
-    public static final SmtpCommand MAIL = new SmtpCommand(AsciiString.cached("MAIL"));
-    public static final SmtpCommand RCPT = new SmtpCommand(AsciiString.cached("RCPT"));
-    public static final SmtpCommand DATA = new SmtpCommand(AsciiString.cached("DATA"));
-    public static final SmtpCommand NOOP = new SmtpCommand(AsciiString.cached("NOOP"));
-    public static final SmtpCommand RSET = new SmtpCommand(AsciiString.cached("RSET"));
-    public static final SmtpCommand EXPN = new SmtpCommand(AsciiString.cached("EXPN"));
-    public static final SmtpCommand VRFY = new SmtpCommand(AsciiString.cached("VRFY"));
-    public static final SmtpCommand HELP = new SmtpCommand(AsciiString.cached("HELP"));
-    public static final SmtpCommand QUIT = new SmtpCommand(AsciiString.cached("QUIT"));
+    public static final SmtpCommand EHLO = new SmtpCommand(new AsciiString("EHLO"), false);
+    public static final SmtpCommand HELO = new SmtpCommand(new AsciiString("HELO"), false);
+    public static final SmtpCommand MAIL = new SmtpCommand(new AsciiString("MAIL"), false);
+    public static final SmtpCommand RCPT = new SmtpCommand(new AsciiString("RCPT"), false);
+    public static final SmtpCommand DATA = new SmtpCommand(new AsciiString("DATA"), true);
+    public static final SmtpCommand NOOP = new SmtpCommand(new AsciiString("NOOP"), false);
+    public static final SmtpCommand RSET = new SmtpCommand(new AsciiString("RSET"), false);
+    public static final SmtpCommand EXPN = new SmtpCommand(new AsciiString("EXPN"), false);
+    public static final SmtpCommand VRFY = new SmtpCommand(new AsciiString("VRFY"), false);
+    public static final SmtpCommand HELP = new SmtpCommand(new AsciiString("HELP"), false);
+    public static final SmtpCommand QUIT = new SmtpCommand(new AsciiString("QUIT"), false);
 
-    private static final Map<String, SmtpCommand> COMMANDS = new HashMap<String, SmtpCommand>();
+    private static final CharSequence DATA_CMD = new AsciiString("DATA");
+    private static final Map<CharSequence, SmtpCommand> COMMANDS = new HashMap<CharSequence, SmtpCommand>();
     static {
-        COMMANDS.put(EHLO.name().toString(), EHLO);
-        COMMANDS.put(HELO.name().toString(), HELO);
-        COMMANDS.put(MAIL.name().toString(), MAIL);
-        COMMANDS.put(RCPT.name().toString(), RCPT);
-        COMMANDS.put(DATA.name().toString(), DATA);
-        COMMANDS.put(NOOP.name().toString(), NOOP);
-        COMMANDS.put(RSET.name().toString(), RSET);
-        COMMANDS.put(EXPN.name().toString(), EXPN);
-        COMMANDS.put(VRFY.name().toString(), VRFY);
-        COMMANDS.put(HELP.name().toString(), HELP);
-        COMMANDS.put(QUIT.name().toString(), QUIT);
+        COMMANDS.put(EHLO.name(), EHLO);
+        COMMANDS.put(HELO.name(), HELO);
+        COMMANDS.put(MAIL.name(), MAIL);
+        COMMANDS.put(RCPT.name(), RCPT);
+        COMMANDS.put(DATA.name(), DATA);
+        COMMANDS.put(NOOP.name(), NOOP);
+        COMMANDS.put(RSET.name(), RSET);
+        COMMANDS.put(EXPN.name(), EXPN);
+        COMMANDS.put(VRFY.name(), VRFY);
+        COMMANDS.put(HELP.name(), HELP);
+        COMMANDS.put(QUIT.name(), QUIT);
     }
 
     /**
      * Returns the {@link SmtpCommand} for the given command name.
      */
     public static SmtpCommand valueOf(CharSequence commandName) {
-        ObjectUtil.checkNotNull(commandName, "commandName");
-        SmtpCommand command = COMMANDS.get(commandName.toString());
-        return command != null ? command : new SmtpCommand(AsciiString.of(commandName));
+        SmtpCommand command = COMMANDS.get(commandName);
+        if (command != null) {
+            return command;
+        }
+        return new SmtpCommand(AsciiString.of(ObjectUtil.checkNotNull(commandName, "commandName")),
+                               AsciiString.contentEqualsIgnoreCase(commandName, DATA_CMD));
     }
 
     private final AsciiString name;
+    private final boolean contentExpected;
+    private int hashCode;
 
-    private SmtpCommand(AsciiString name) {
+    private SmtpCommand(AsciiString name, boolean contentExpected) {
         this.name = name;
+        this.contentExpected = contentExpected;
     }
 
     /**
@@ -79,16 +86,19 @@ public final class SmtpCommand {
     }
 
     void encode(ByteBuf buffer) {
-        ByteBufUtil.writeAscii(buffer, name);
+        ByteBufUtil.writeAscii(buffer, name());
     }
 
     boolean isContentExpected() {
-        return this.equals(DATA);
+        return contentExpected;
     }
 
     @Override
     public int hashCode() {
-        return name.hashCode();
+        if (hashCode != -1) {
+            hashCode = AsciiString.hashCode(name);
+        }
+        return hashCode;
     }
 
     @Override
@@ -104,6 +114,10 @@ public final class SmtpCommand {
 
     @Override
     public String toString() {
-        return "SmtpCommand{name=" + name + '}';
+        return "SmtpCommand{" +
+                "name=" + name +
+                ", contentExpected=" + contentExpected +
+                ", hashCode=" + hashCode +
+                '}';
     }
 }

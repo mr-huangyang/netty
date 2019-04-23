@@ -15,8 +15,6 @@
  */
 package io.netty.buffer;
 
-import io.netty.util.ResourceLeakTracker;
-
 public class AdvancedLeakAwareByteBufTest extends SimpleLeakAwareByteBufTest {
 
     @Override
@@ -25,7 +23,7 @@ public class AdvancedLeakAwareByteBufTest extends SimpleLeakAwareByteBufTest {
     }
 
     @Override
-    protected SimpleLeakAwareByteBuf wrap(ByteBuf buffer, ResourceLeakTracker<ByteBuf> tracker) {
-        return new AdvancedLeakAwareByteBuf(buffer, tracker);
+    protected ByteBuf wrap(ByteBuf buffer) {
+        return new AdvancedLeakAwareByteBuf(buffer, NoopResourceLeak.INSTANCE);
     }
 }

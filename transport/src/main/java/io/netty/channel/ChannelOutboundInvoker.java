@@ -21,6 +21,9 @@ import io.netty.util.concurrent.FutureListener;
 import java.net.ConnectException;
 import java.net.SocketAddress;
 
+/**
+ * 定义了对外操作的方法：bind , connect...
+ */
 public interface ChannelOutboundInvoker {
 
     /**

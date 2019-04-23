@@ -20,7 +20,6 @@ import com.google.protobuf.nano.MessageNano;
 import java.util.List;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
@@ -31,7 +30,7 @@ import io.netty.util.internal.ObjectUtil;
 
 /**
  * Decodes a received {@link ByteBuf} into a
- * <a href="https://github.com/google/protobuf">Google Protocol Buffers</a>
+ * <a href="http://code.google.com/p/protobuf/">Google Protocol Buffers</a>
  * {@link MessageNano}. Please note that this decoder must
  * be used with a proper {@link ByteToMessageDecoder} such as {@link LengthFieldBasedFrameDecoder}
  * if you are using a stream-based transport such as TCP/IP. A typical setup for TCP/IP would be:
@@ -79,10 +78,11 @@ public class ProtobufDecoderNano extends MessageToMessageDecoder<ByteBuf> {
             array = msg.array();
             offset = msg.arrayOffset() + msg.readerIndex();
         } else {
-            array = ByteBufUtil.getBytes(msg, msg.readerIndex(), length, false);
+            array = new byte[length];
+            msg.getBytes(msg.readerIndex(), array, 0, length);
             offset = 0;
         }
-        MessageNano prototype = clazz.getConstructor().newInstance();
+        MessageNano prototype = clazz.newInstance();
         out.add(MessageNano.mergeFrom(prototype, array, offset, length));
     }
 }

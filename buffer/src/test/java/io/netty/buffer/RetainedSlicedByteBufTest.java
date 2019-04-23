@@ -16,16 +16,19 @@
 
 package io.netty.buffer;
 
+import io.netty.util.internal.ThreadLocalRandom;
 
-import org.junit.Assert;
+import static org.junit.Assert.assertEquals;
 
 public class RetainedSlicedByteBufTest extends SlicedByteBufTest {
-
     @Override
-    protected ByteBuf newSlice(ByteBuf buffer, int offset, int length) {
-        ByteBuf slice = buffer.retainedSlice(offset, length);
-        buffer.release();
-        Assert.assertEquals(buffer.refCnt(), slice.refCnt());
-        return slice;
+    protected ByteBuf newBuffer(int length) {
+        ByteBuf wrapped = Unpooled.wrappedBuffer(new byte[length * 2]);
+        ByteBuf buffer = wrapped.retainedSlice(ThreadLocalRandom.current().nextInt(length - 1) + 1, length);
+        wrapped.release();
+
+        assertEquals(0, buffer.readerIndex());
+        assertEquals(length, buffer.writerIndex());
+        return buffer;
     }
 }

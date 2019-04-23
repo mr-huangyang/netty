@@ -20,26 +20,15 @@
   <parent>
     <groupId>io.netty</groupId>
     <artifactId>netty-parent</artifactId>
-    <version>4.1.36.Final-SNAPSHOT</version>
+    <version>4.1.5.Final</version>
   </parent>
 
   <artifactId>netty-handler</artifactId>
   <packaging>jar</packaging>
 
-  <properties>
-    <javaModuleName>io.netty.handler</javaModuleName>
-    <!-- Needed for SelfSignedCertificate -->
-    <argLine.java9.extras>--add-exports java.base/sun.security.x509=ALL-UNNAMED</argLine.java9.extras>
-  </properties>
-
   <name>Netty/Handler</name>
 
   <dependencies>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-common</artifactId>
-      <version>${project.version}</version>
-    </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>netty-buffer</artifactId>
@@ -75,16 +64,6 @@
       <groupId>org.eclipse.jetty.alpn</groupId>
       <artifactId>alpn-api</artifactId>
       <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>${conscrypt.groupId}</groupId>
-      <artifactId>${conscrypt.artifactId}</artifactId>
-      <classifier>${conscrypt.classifier}</classifier>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
     </dependency>
   </dependencies>
 </project>

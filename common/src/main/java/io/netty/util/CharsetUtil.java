@@ -65,9 +65,7 @@ public final class CharsetUtil {
     private static final Charset[] CHARSETS = new Charset[]
             { UTF_16, UTF_16BE, UTF_16LE, UTF_8, ISO_8859_1, US_ASCII };
 
-    public static Charset[] values() {
-        return CHARSETS;
-    }
+    public static Charset[] values() { return CHARSETS; }
 
     /**
      * @deprecated Use {@link #encoder(Charset)}.
@@ -83,7 +81,7 @@ public final class CharsetUtil {
      * @param charset The specified charset
      * @param malformedInputAction The encoder's action for malformed-input errors
      * @param unmappableCharacterAction The encoder's action for unmappable-character errors
-     * @return The encoder for the specified {@code charset}
+     * @return The encoder for the specified <code>charset</code>
      */
     public static CharsetEncoder encoder(Charset charset, CodingErrorAction malformedInputAction,
                                          CodingErrorAction unmappableCharacterAction) {
@@ -98,7 +96,7 @@ public final class CharsetUtil {
      *
      * @param charset The specified charset
      * @param codingErrorAction The encoder's action for malformed-input and unmappable-character errors
-     * @return The encoder for the specified {@code charset}
+     * @return The encoder for the specified <code>charset</code>
      */
     public static CharsetEncoder encoder(Charset charset, CodingErrorAction codingErrorAction) {
         return encoder(charset, codingErrorAction, codingErrorAction);
@@ -108,7 +106,7 @@ public final class CharsetUtil {
      * Returns a cached thread-local {@link CharsetEncoder} for the specified {@link Charset}.
      *
      * @param charset The specified charset
-     * @return The encoder for the specified {@code charset}
+     * @return The encoder for the specified <code>charset</code>
      */
     public static CharsetEncoder encoder(Charset charset) {
         checkNotNull(charset, "charset");
@@ -139,7 +137,7 @@ public final class CharsetUtil {
      * @param charset The specified charset
      * @param malformedInputAction The decoder's action for malformed-input errors
      * @param unmappableCharacterAction The decoder's action for unmappable-character errors
-     * @return The decoder for the specified {@code charset}
+     * @return The decoder for the specified <code>charset</code>
      */
     public static CharsetDecoder decoder(Charset charset, CodingErrorAction malformedInputAction,
                                          CodingErrorAction unmappableCharacterAction) {
@@ -154,7 +152,7 @@ public final class CharsetUtil {
      *
      * @param charset The specified charset
      * @param codingErrorAction The decoder's action for malformed-input and unmappable-character errors
-     * @return The decoder for the specified {@code charset}
+     * @return The decoder for the specified <code>charset</code>
      */
     public static CharsetDecoder decoder(Charset charset, CodingErrorAction codingErrorAction) {
         return decoder(charset, codingErrorAction, codingErrorAction);
@@ -164,7 +162,7 @@ public final class CharsetUtil {
      * Returns a cached thread-local {@link CharsetDecoder} for the specified {@link Charset}.
      *
      * @param charset The specified charset
-     * @return The decoder for the specified {@code charset}
+     * @return The decoder for the specified <code>charset</code>
      */
     public static CharsetDecoder decoder(Charset charset) {
         checkNotNull(charset, "charset");

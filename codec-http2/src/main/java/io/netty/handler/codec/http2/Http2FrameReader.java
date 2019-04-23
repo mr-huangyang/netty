@@ -32,9 +32,9 @@ public interface Http2FrameReader extends Closeable {
      */
     interface Configuration {
         /**
-         * Get the {@link Http2HeadersDecoder.Configuration} for this {@link Http2FrameReader}
+         * Get the {@link Http2HeaderTable} for this {@link Http2FrameReader}
          */
-        Http2HeadersDecoder.Configuration headersConfiguration();
+        Http2HeaderTable headerTable();
 
         /**
          * Get the {@link Http2FrameSizePolicy} for this {@link Http2FrameReader}

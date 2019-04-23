@@ -15,57 +15,23 @@
  */
 package io.netty.handler.ssl;
 
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.util.ReferenceCountUtil;
-import org.junit.Test;
 
 import javax.net.ssl.SSLEngine;
 
 public class ReferenceCountedOpenSslEngineTest extends OpenSslEngineTest {
-
-    public ReferenceCountedOpenSslEngineTest(BufferType type, ProtocolCipherCombo combo, boolean delegate) {
-        super(type, combo, delegate);
-    }
-
     @Override
-    protected SslProvider sslClientProvider() {
+    protected SslProvider sslProvider() {
         return SslProvider.OPENSSL_REFCNT;
     }
 
     @Override
-    protected SslProvider sslServerProvider() {
-        return SslProvider.OPENSSL_REFCNT;
-    }
-
-    @Override
-    protected void cleanupClientSslContext(SslContext ctx) {
+    protected void cleanupSslContext(SslContext ctx) {
         ReferenceCountUtil.release(ctx);
     }
 
     @Override
-    protected void cleanupClientSslEngine(SSLEngine engine) {
+    protected void cleanupSslEngine(SSLEngine engine) {
         ReferenceCountUtil.release(engine);
-    }
-
-    @Override
-    protected void cleanupServerSslContext(SslContext ctx) {
-        ReferenceCountUtil.release(ctx);
-    }
-
-    @Override
-    protected void cleanupServerSslEngine(SSLEngine engine) {
-        ReferenceCountUtil.release(engine);
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void testNotLeakOnException() throws Exception {
-        clientSslCtx = SslContextBuilder.forClient()
-                                        .trustManager(InsecureTrustManagerFactory.INSTANCE)
-                                        .sslProvider(sslClientProvider())
-                                        .protocols(protocols())
-                                        .ciphers(ciphers())
-                                        .build();
-
-        clientSslCtx.newEngine(null);
     }
 }

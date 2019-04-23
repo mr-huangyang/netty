@@ -24,7 +24,6 @@ import static io.netty.handler.codec.http2.Http2Error.INTERNAL_ERROR;
 import static io.netty.handler.codec.http2.Http2Exception.connectionError;
 import static io.netty.handler.codec.http2.Http2Exception.streamError;
 import static io.netty.util.internal.ObjectUtil.checkNotNull;
-import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 import io.netty.buffer.ByteBuf;
@@ -174,7 +173,9 @@ public class DefaultHttp2LocalFlowController implements Http2LocalFlowController
     @Override
     public boolean consumeBytes(Http2Stream stream, int numBytes) throws Http2Exception {
         assert ctx != null && ctx.executor().inEventLoop();
-        checkPositiveOrZero(numBytes, "numBytes");
+        if (numBytes < 0) {
+            throw new IllegalArgumentException("numBytes must not be negative");
+        }
         if (numBytes == 0) {
             return false;
         }
@@ -295,7 +296,7 @@ public class DefaultHttp2LocalFlowController implements Http2LocalFlowController
      * received.
      */
     private final class AutoRefillState extends DefaultState {
-        AutoRefillState(Http2Stream stream, int initialWindowSize) {
+        public AutoRefillState(Http2Stream stream, int initialWindowSize) {
             super(stream, initialWindowSize);
         }
 
@@ -348,7 +349,7 @@ public class DefaultHttp2LocalFlowController implements Http2LocalFlowController
         private int lowerBound;
         private boolean endOfStream;
 
-        DefaultState(Http2Stream stream, int initialWindowSize) {
+        public DefaultState(Http2Stream stream, int initialWindowSize) {
             this.stream = stream;
             window(initialWindowSize);
             streamWindowUpdateRatio = windowUpdateRatio;
@@ -612,7 +613,7 @@ public class DefaultHttp2LocalFlowController implements Http2LocalFlowController
         private CompositeStreamException compositeException;
         private final int delta;
 
-        WindowUpdateVisitor(int delta) {
+        public WindowUpdateVisitor(int delta) {
             this.delta = delta;
         }
 

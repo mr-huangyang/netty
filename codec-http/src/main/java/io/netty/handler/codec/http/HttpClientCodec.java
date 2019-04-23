@@ -47,7 +47,6 @@ public final class HttpClientCodec extends CombinedChannelDuplexHandler<HttpResp
 
     /** A queue that is used for correlating a request and a response. */
     private final Queue<HttpMethod> queue = new ArrayDeque<HttpMethod>();
-    private final boolean parseHttpAfterConnectRequest;
 
     /** If true, decoding stops (i.e. pass-through) */
     private boolean done;
@@ -85,18 +84,8 @@ public final class HttpClientCodec extends CombinedChannelDuplexHandler<HttpResp
     public HttpClientCodec(
             int maxInitialLineLength, int maxHeaderSize, int maxChunkSize, boolean failOnMissingResponse,
             boolean validateHeaders) {
-        this(maxInitialLineLength, maxHeaderSize, maxChunkSize, failOnMissingResponse, validateHeaders, false);
-    }
-
-    /**
-     * Creates a new instance with the specified decoder options.
-     */
-    public HttpClientCodec(
-            int maxInitialLineLength, int maxHeaderSize, int maxChunkSize, boolean failOnMissingResponse,
-            boolean validateHeaders, boolean parseHttpAfterConnectRequest) {
         init(new Decoder(maxInitialLineLength, maxHeaderSize, maxChunkSize, validateHeaders), new Encoder());
         this.failOnMissingResponse = failOnMissingResponse;
-        this.parseHttpAfterConnectRequest = parseHttpAfterConnectRequest;
     }
 
     /**
@@ -105,19 +94,8 @@ public final class HttpClientCodec extends CombinedChannelDuplexHandler<HttpResp
     public HttpClientCodec(
             int maxInitialLineLength, int maxHeaderSize, int maxChunkSize, boolean failOnMissingResponse,
             boolean validateHeaders, int initialBufferSize) {
-        this(maxInitialLineLength, maxHeaderSize, maxChunkSize, failOnMissingResponse, validateHeaders,
-                initialBufferSize, false);
-    }
-
-    /**
-     * Creates a new instance with the specified decoder options.
-     */
-    public HttpClientCodec(
-            int maxInitialLineLength, int maxHeaderSize, int maxChunkSize, boolean failOnMissingResponse,
-            boolean validateHeaders, int initialBufferSize, boolean parseHttpAfterConnectRequest) {
         init(new Decoder(maxInitialLineLength, maxHeaderSize, maxChunkSize, validateHeaders, initialBufferSize),
              new Encoder());
-        this.parseHttpAfterConnectRequest = parseHttpAfterConnectRequest;
         this.failOnMissingResponse = failOnMissingResponse;
     }
 
@@ -166,7 +144,7 @@ public final class HttpClientCodec extends CombinedChannelDuplexHandler<HttpResp
 
             super.encode(ctx, msg, out);
 
-            if (failOnMissingResponse && !done) {
+            if (failOnMissingResponse) {
                 // check if the request is chunked if so do not increment
                 if (msg instanceof LastHttpContent) {
                     // increment as its the last chunk
@@ -223,10 +201,9 @@ public final class HttpClientCodec extends CombinedChannelDuplexHandler<HttpResp
         @Override
         protected boolean isContentAlwaysEmpty(HttpMessage msg) {
             final int statusCode = ((HttpResponse) msg).status().code();
-            if (statusCode == 100 || statusCode == 101) {
-                // 100-continue and 101 switching protocols response should be excluded from paired comparison.
-                // Just delegate to super method which has all the needed handling.
-                return super.isContentAlwaysEmpty(msg);
+            if (statusCode == 100) {
+                // 100-continue response should be excluded from paired comparison.
+                return true;
             }
 
             // Get the getMethod of the HTTP request that corresponds to the
@@ -237,7 +214,7 @@ public final class HttpClientCodec extends CombinedChannelDuplexHandler<HttpResp
             switch (firstChar) {
             case 'H':
                 // According to 4.3, RFC2616:
-                // All responses to the HEAD request method MUST NOT include a
+                // All responses to the HEAD request getMethod MUST NOT include a
                 // message-body, even though the presence of entity-header fields
                 // might lead one to believe they do.
                 if (HttpMethod.HEAD.equals(method)) {
@@ -261,12 +238,9 @@ public final class HttpClientCodec extends CombinedChannelDuplexHandler<HttpResp
                 // Successful CONNECT request results in a response with empty body.
                 if (statusCode == 200) {
                     if (HttpMethod.CONNECT.equals(method)) {
-                        // Proxy connection established - Parse HTTP only if configured by parseHttpAfterConnectRequest,
-                        // else pass through.
-                        if (!parseHttpAfterConnectRequest) {
-                            done = true;
-                            queue.clear();
-                        }
+                        // Proxy connection established - Not HTTP anymore.
+                        done = true;
+                        queue.clear();
                         return true;
                     }
                 }

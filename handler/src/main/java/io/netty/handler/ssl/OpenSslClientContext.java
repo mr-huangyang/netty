@@ -15,7 +15,7 @@
  */
 package io.netty.handler.ssl;
 
-import io.netty.internal.tcnative.SSL;
+import org.apache.tomcat.jni.SSL;
 
 import java.io.File;
 import java.security.PrivateKey;
@@ -175,21 +175,19 @@ public final class OpenSslClientContext extends OpenSslContext {
             throws SSLException {
         this(toX509CertificatesInternal(trustCertCollectionFile), trustManagerFactory,
                 toX509CertificatesInternal(keyCertChainFile), toPrivateKeyInternal(keyFile, keyPassword),
-                keyPassword, keyManagerFactory, ciphers, cipherFilter, apn, null, sessionCacheSize,
-                sessionTimeout, false);
+                keyPassword, keyManagerFactory, ciphers, cipherFilter, apn, sessionCacheSize, sessionTimeout);
     }
 
     OpenSslClientContext(X509Certificate[] trustCertCollection, TrustManagerFactory trustManagerFactory,
                          X509Certificate[] keyCertChain, PrivateKey key, String keyPassword,
                                 KeyManagerFactory keyManagerFactory, Iterable<String> ciphers,
-                                CipherSuiteFilter cipherFilter, ApplicationProtocolConfig apn, String[] protocols,
-                                long sessionCacheSize, long sessionTimeout, boolean enableOcsp)
+                                CipherSuiteFilter cipherFilter, ApplicationProtocolConfig apn,
+                                long sessionCacheSize, long sessionTimeout)
             throws SSLException {
         super(ciphers, cipherFilter, apn, sessionCacheSize, sessionTimeout, SSL.SSL_MODE_CLIENT, keyCertChain,
-                ClientAuth.NONE, protocols, false, enableOcsp);
+                ClientAuth.NONE);
         boolean success = false;
         try {
-            OpenSslKeyMaterialProvider.validateKeyMaterialSupported(keyCertChain, key, keyPassword);
             sessionContext = newSessionContext(this, ctx, engineMap, trustCertCollection, trustManagerFactory,
                                                keyCertChain, key, keyPassword, keyManagerFactory);
             success = true;
@@ -203,5 +201,10 @@ public final class OpenSslClientContext extends OpenSslContext {
     @Override
     public OpenSslSessionContext sessionContext() {
         return sessionContext;
+    }
+
+    @Override
+    OpenSslKeyMaterialManager keyMaterialManager() {
+        return null;
     }
 }

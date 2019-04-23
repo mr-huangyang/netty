@@ -21,7 +21,6 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.util.internal.SocketUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -36,18 +35,6 @@ public class IpSubnetFilterTest {
         Assert.assertTrue(rule.matches(newSockAddress("91.114.240.43")));
         Assert.assertTrue(rule.matches(newSockAddress("10.0.0.3")));
         Assert.assertTrue(rule.matches(newSockAddress("192.168.93.2")));
-    }
-
-    @Test
-    public void testIpv4SubnetMaskCorrectlyHandlesIpv6() {
-        IpSubnetFilterRule rule = new IpSubnetFilterRule("0.0.0.0", 0, IpFilterRuleType.ACCEPT);
-        Assert.assertFalse(rule.matches(newSockAddress("2001:db8:abcd:0000::1")));
-    }
-
-    @Test
-    public void testIpv6SubnetMaskCorrectlyHandlesIpv4() {
-        IpSubnetFilterRule rule = new IpSubnetFilterRule("::", 0, IpFilterRuleType.ACCEPT);
-        Assert.assertFalse(rule.matches(newSockAddress("91.114.240.43")));
     }
 
     @Test
@@ -145,12 +132,12 @@ public class IpSubnetFilterTest {
         return new EmbeddedChannel(handlers) {
             @Override
             protected SocketAddress remoteAddress0() {
-                return isActive()? SocketUtils.socketAddress(ipAddress, 5421) : null;
+                return isActive()? new InetSocketAddress(ipAddress, 5421) : null;
             }
         };
     }
 
     private static InetSocketAddress newSockAddress(String ipAddress) {
-        return SocketUtils.socketAddress(ipAddress, 1234);
+        return new InetSocketAddress(ipAddress, 1234);
     }
 }

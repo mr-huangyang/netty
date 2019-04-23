@@ -37,7 +37,6 @@ public final class SctpEchoServer {
         // Configure the server.
         EventLoopGroup bossGroup = new NioEventLoopGroup(1);
         EventLoopGroup workerGroup = new NioEventLoopGroup();
-        final SctpEchoServerHandler serverHandler = new SctpEchoServerHandler();
         try {
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup)
@@ -49,7 +48,7 @@ public final class SctpEchoServer {
                  public void initChannel(SctpChannel ch) throws Exception {
                      ch.pipeline().addLast(
                              //new LoggingHandler(LogLevel.INFO),
-                             serverHandler);
+                             new SctpEchoServerHandler());
                  }
              });
 

@@ -16,9 +16,6 @@
 
 package io.netty.util.concurrent;
 
-import io.netty.util.internal.DefaultPriorityQueue;
-import io.netty.util.internal.PriorityQueueNode;
-
 import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Delayed;
@@ -26,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 @SuppressWarnings("ComparableImplementedButEqualsNotOverridden")
-final class ScheduledFutureTask<V> extends PromiseTask<V> implements ScheduledFuture<V>, PriorityQueueNode {
+final class ScheduledFutureTask<V> extends PromiseTask<V> implements ScheduledFuture<V> {
     private static final AtomicLong nextTaskId = new AtomicLong();
     private static final long START_TIME = System.nanoTime();
 
@@ -35,17 +32,13 @@ final class ScheduledFutureTask<V> extends PromiseTask<V> implements ScheduledFu
     }
 
     static long deadlineNanos(long delay) {
-        long deadlineNanos = nanoTime() + delay;
-        // Guard against overflow
-        return deadlineNanos < 0 ? Long.MAX_VALUE : deadlineNanos;
+        return nanoTime() + delay;
     }
 
     private final long id = nextTaskId.getAndIncrement();
     private long deadlineNanos;
     /* 0 - no repeat, >0 - repeat at fixed rate, <0 - repeat with fixed delay */
     private final long periodNanos;
-
-    private int queueIndex = INDEX_NOT_IN_QUEUE;
 
     ScheduledFutureTask(
             AbstractScheduledEventExecutor executor,
@@ -153,11 +146,6 @@ final class ScheduledFutureTask<V> extends PromiseTask<V> implements ScheduledFu
         }
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * @param mayInterruptIfRunning this value has no effect in this implementation.
-     */
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
         boolean canceled = super.cancel(mayInterruptIfRunning);
@@ -183,15 +171,5 @@ final class ScheduledFutureTask<V> extends PromiseTask<V> implements ScheduledFu
                   .append(", period: ")
                   .append(periodNanos)
                   .append(')');
-    }
-
-    @Override
-    public int priorityQueueIndex(DefaultPriorityQueue<?> queue) {
-        return queueIndex;
-    }
-
-    @Override
-    public void priorityQueueIndex(DefaultPriorityQueue<?> queue, int i) {
-        queueIndex = i;
     }
 }

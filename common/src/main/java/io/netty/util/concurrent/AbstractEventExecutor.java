@@ -29,6 +29,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Abstract base class for {@link EventExecutor} implementations.
+ * <br/>
+ * 简单的实现，实现了parent(),next()方法逻辑
  */
 public abstract class AbstractEventExecutor extends AbstractExecutorService implements EventExecutor {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractEventExecutor.class);

@@ -58,10 +58,7 @@ import java.util.Set;
  *
  * Be aware that not all operations systems support SCTP. Please refer to the documentation of your operation system,
  * to understand what you need to do to use it. Also this feature is only supported on Java 7+.
- *
- * @deprecated use {@link io.netty.channel.sctp.nio.NioSctpChannel}.
  */
-@Deprecated
 public class OioSctpChannel extends AbstractOioMessageChannel
         implements io.netty.channel.sctp.SctpChannel {
 
@@ -405,9 +402,7 @@ public class OioSctpChannel extends AbstractOioMessageChannel
         try {
             selector.close();
         } catch (IOException e) {
-            if (logger.isWarnEnabled()) {
-                logger.warn("Failed to close a " + selectorName + " selector.", e);
-            }
+            logger.warn("Failed to close a " + selectorName + " selector.", e);
         }
     }
 

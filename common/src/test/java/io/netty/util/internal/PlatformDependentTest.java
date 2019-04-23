@@ -17,13 +17,15 @@ package io.netty.util.internal;
 
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
+import java.security.Permission;
 import java.util.Random;
 
 import static io.netty.util.internal.PlatformDependent.hashCodeAscii;
 import static io.netty.util.internal.PlatformDependent.hashCodeAsciiSafe;
-import static org.junit.Assert.*;
-import static org.junit.Assume.assumeTrue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertTrue;
 
 public class PlatformDependentTest {
     private static final Random r = new Random();
@@ -47,25 +49,11 @@ public class PlatformDependentTest {
         });
     }
 
-    @Test
-    public void testIsZero() {
-        byte[] bytes = new byte[100];
-        assertTrue(PlatformDependent.isZero(bytes, 0, 0));
-        assertTrue(PlatformDependent.isZero(bytes, 0, -1));
-        assertTrue(PlatformDependent.isZero(bytes, 0, 100));
-        assertTrue(PlatformDependent.isZero(bytes, 10, 90));
-        bytes[10] = 1;
-        assertTrue(PlatformDependent.isZero(bytes, 0, 10));
-        assertFalse(PlatformDependent.isZero(bytes, 0, 11));
-        assertFalse(PlatformDependent.isZero(bytes, 10, 1));
-        assertTrue(PlatformDependent.isZero(bytes, 11, 89));
-    }
-
     private interface EqualityChecker {
         boolean equals(byte[] bytes1, int startPos1, byte[] bytes2, int startPos2, int length);
     }
 
-    private static void testEquals(EqualityChecker equalsChecker) {
+    private void testEquals(EqualityChecker equalsChecker) {
         byte[] bytes1 = {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd'};
         byte[] bytes2 = {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd'};
         assertNotSame(bytes1, bytes2);
@@ -117,9 +105,6 @@ public class PlatformDependentTest {
             bytes2 = bytes1.clone();
             assertTrue(equalsChecker.equals(bytes1, 0, bytes2, 0, bytes1.length));
         }
-
-        assertTrue(equalsChecker.equals(bytes1, 0, bytes2, 0, 0));
-        assertTrue(equalsChecker.equals(bytes1, 0, bytes2, 0, -1));
     }
 
     private static char randomCharInByteRange() {
@@ -147,11 +132,38 @@ public class PlatformDependentTest {
     }
 
     @Test
-    public void testAllocateWithCapacity0() {
-        assumeTrue(PlatformDependent.hasDirectBufferNoCleanerConstructor());
-        ByteBuffer buffer = PlatformDependent.allocateDirectNoCleaner(0);
-        assertNotEquals(0, PlatformDependent.directBufferAddress(buffer));
-        assertEquals(0, buffer.capacity());
-        PlatformDependent.freeDirectNoCleaner(buffer);
+    public void testMajorVersionFromJavaSpecificationVersion() {
+        final SecurityManager current = System.getSecurityManager();
+
+        try {
+            System.setSecurityManager(new SecurityManager() {
+                @Override
+                public void checkPropertyAccess(String key) {
+                    if (key.equals("java.specification.version")) {
+                        // deny
+                        throw new SecurityException(key);
+                    }
+                }
+
+                // so we can restore the security manager
+                @Override
+                public void checkPermission(Permission perm) {
+                }
+            });
+
+            assertEquals(6, PlatformDependent.majorVersionFromJavaSpecificationVersion());
+        } finally {
+            System.setSecurityManager(current);
+        }
+    }
+
+    @Test
+    public void testMajorVersion() {
+        assertEquals(6, PlatformDependent.majorVersion("1.6"));
+        assertEquals(7, PlatformDependent.majorVersion("1.7"));
+        assertEquals(8, PlatformDependent.majorVersion("1.8"));
+        assertEquals(8, PlatformDependent.majorVersion("8"));
+        assertEquals(9, PlatformDependent.majorVersion("1.9")); // early version of JDK 9 before Project Verona
+        assertEquals(9, PlatformDependent.majorVersion("9"));
     }
 }

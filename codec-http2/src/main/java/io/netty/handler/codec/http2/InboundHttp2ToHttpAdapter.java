@@ -29,7 +29,6 @@ import io.netty.util.internal.UnstableApi;
 import static io.netty.handler.codec.http2.Http2Error.INTERNAL_ERROR;
 import static io.netty.handler.codec.http2.Http2Error.PROTOCOL_ERROR;
 import static io.netty.handler.codec.http2.Http2Exception.connectionError;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.util.internal.ObjectUtil.checkNotNull;
 
 /**
@@ -128,7 +127,7 @@ public class InboundHttp2ToHttpAdapter extends Http2EventAdapter {
      *
      * @param ctx The context to fire the event on
      * @param msg The message to send
-     * @param release {@code true} to call release on the value if it is present. {@code false} to not call release.
+     * @param release {@code true} to release if present in {@link #messageMap}. {@code false} otherwise.
      * @param stream the stream of the message which is being fired
      */
     protected void fireChannelRead(ChannelHandlerContext ctx, FullHttpMessage msg, boolean release,
@@ -155,7 +154,7 @@ public class InboundHttp2ToHttpAdapter extends Http2EventAdapter {
                                          ByteBufAllocator alloc)
             throws Http2Exception {
         return connection.isServer() ? HttpConversionUtil.toFullHttpRequest(stream.id(), headers, alloc,
-                validateHttpHeaders) : HttpConversionUtil.toFullHttpResponse(stream.id(), headers, alloc,
+                validateHttpHeaders) : HttpConversionUtil.toHttpResponse(stream.id(), headers, alloc,
                                                                          validateHttpHeaders);
     }
 
@@ -269,14 +268,6 @@ public class InboundHttp2ToHttpAdapter extends Http2EventAdapter {
         Http2Stream stream = connection.stream(streamId);
         FullHttpMessage msg = processHeadersBegin(ctx, stream, headers, endOfStream, true, true);
         if (msg != null) {
-            // Add headers for dependency and weight.
-            // See https://github.com/netty/netty/issues/5866
-            if (streamDependency != Http2CodecUtil.CONNECTION_STREAM_ID) {
-                msg.headers().setInt(HttpConversionUtil.ExtensionHeaderNames.STREAM_DEPENDENCY_ID.text(),
-                        streamDependency);
-            }
-            msg.headers().setShort(HttpConversionUtil.ExtensionHeaderNames.STREAM_WEIGHT.text(), weight);
-
             processHeadersEnd(ctx, stream, msg, endOfStream);
         }
     }
@@ -297,14 +288,6 @@ public class InboundHttp2ToHttpAdapter extends Http2EventAdapter {
             Http2Headers headers, int padding) throws Http2Exception {
         // A push promise should not be allowed to add headers to an existing stream
         Http2Stream promisedStream = connection.stream(promisedStreamId);
-        if (headers.status() == null) {
-            // A PUSH_PROMISE frame has no Http response status.
-            // https://tools.ietf.org/html/rfc7540#section-8.2.1
-            // Server push is semantically equivalent to a server responding to a
-            // request; however, in this case, that request is also sent by the
-            // server, as a PUSH_PROMISE frame.
-            headers.status(OK.codeAsText());
-        }
         FullHttpMessage msg = processHeadersBegin(ctx, promisedStream, headers, false, false, false);
         if (msg == null) {
             throw connectionError(PROTOCOL_ERROR, "Push Promise Frame received for pre-existing stream id %d",
@@ -312,8 +295,6 @@ public class InboundHttp2ToHttpAdapter extends Http2EventAdapter {
         }
 
         msg.headers().setInt(HttpConversionUtil.ExtensionHeaderNames.STREAM_PROMISE_ID.text(), streamId);
-        msg.headers().setShort(HttpConversionUtil.ExtensionHeaderNames.STREAM_WEIGHT.text(),
-                Http2CodecUtil.DEFAULT_PRIORITY_WEIGHT);
 
         processHeadersEnd(ctx, promisedStream, msg, false);
     }

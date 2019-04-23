@@ -18,8 +18,10 @@ package io.netty.handler.codec;
 import io.netty.microbench.util.AbstractMicrobenchmark;
 import io.netty.util.internal.RecyclableArrayList;
 import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 
@@ -37,6 +39,13 @@ public class CodecOutputListBenchmark extends AbstractMicrobenchmark {
     @Param({ "1", "4" })
     public int elements;
 
+    @Setup(Level.Invocation)
+    public void setup() {
+        codecOutputList = CodecOutputList.newInstance();
+        recycleableArrayList = RecyclableArrayList.newInstance(16);
+        arrayList = new ArrayList<Object>(16);
+    }
+
     @TearDown
     public void destroy() {
         codecOutputList.recycle();
@@ -45,19 +54,16 @@ public class CodecOutputListBenchmark extends AbstractMicrobenchmark {
 
     @Benchmark
     public void codecOutList() {
-        codecOutputList = CodecOutputList.newInstance();
         benchmarkAddAndClear(codecOutputList, elements);
     }
 
     @Benchmark
     public void recyclableArrayList() {
-        recycleableArrayList = RecyclableArrayList.newInstance(16);
         benchmarkAddAndClear(recycleableArrayList, elements);
     }
 
     @Benchmark
     public void arrayList() {
-        arrayList = new ArrayList<Object>(16);
         benchmarkAddAndClear(arrayList, elements);
     }
 

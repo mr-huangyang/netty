@@ -14,6 +14,9 @@
  */
 package io.netty.handler.codec.http;
 
+import static io.netty.util.AsciiString.containsContentEqualsIgnoreCase;
+import static io.netty.util.AsciiString.containsAllContentEqualsIgnoreCase;
+
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -27,10 +30,7 @@ import java.util.List;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.SWITCHING_PROTOCOLS;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
-import static io.netty.util.AsciiString.containsAllContentEqualsIgnoreCase;
-import static io.netty.util.AsciiString.containsContentEqualsIgnoreCase;
 import static io.netty.util.internal.ObjectUtil.checkNotNull;
-import static io.netty.util.internal.StringUtil.COMMA;
 
 /**
  * A server-side handler that receives HTTP requests and optionally performs a protocol switch if
@@ -284,23 +284,16 @@ public class HttpServerUpgradeHandler extends HttpObjectAggregator {
         }
 
         // Make sure the CONNECTION header is present.
-        List<String> connectionHeaderValues = request.headers().getAll(HttpHeaderNames.CONNECTION);
-
-        if (connectionHeaderValues == null) {
+        CharSequence connectionHeader = request.headers().get(HttpHeaderNames.CONNECTION);
+        if (connectionHeader == null) {
             return false;
         }
 
-        final StringBuilder concatenatedConnectionValue = new StringBuilder(connectionHeaderValues.size() * 10);
-        for (CharSequence connectionHeaderValue : connectionHeaderValues) {
-            concatenatedConnectionValue.append(connectionHeaderValue).append(COMMA);
-        }
-        concatenatedConnectionValue.setLength(concatenatedConnectionValue.length() - 1);
-
         // Make sure the CONNECTION header contains UPGRADE as well as all protocol-specific headers.
         Collection<CharSequence> requiredHeaders = upgradeCodec.requiredUpgradeHeaders();
-        List<CharSequence> values = splitHeader(concatenatedConnectionValue);
+        List<CharSequence> values = splitHeader(connectionHeader);
         if (!containsContentEqualsIgnoreCase(values, HttpHeaderNames.UPGRADE) ||
-                !containsAllContentEqualsIgnoreCase(values, requiredHeaders)) {
+            !containsAllContentEqualsIgnoreCase(values, requiredHeaders)) {
             return false;
         }
 
@@ -321,31 +314,31 @@ public class HttpServerUpgradeHandler extends HttpObjectAggregator {
         // Create the user event to be fired once the upgrade completes.
         final UpgradeEvent event = new UpgradeEvent(upgradeProtocol, request);
 
-        // After writing the upgrade response we immediately prepare the
-        // pipeline for the next protocol to avoid a race between completion
-        // of the write future and receiving data before the pipeline is
-        // restructured.
-        try {
-            final ChannelFuture writeComplete = ctx.writeAndFlush(upgradeResponse);
-            // Perform the upgrade to the new protocol.
-            sourceCodec.upgradeFrom(ctx);
-            upgradeCodec.upgradeTo(ctx, request);
+        final UpgradeCodec finalUpgradeCodec = upgradeCodec;
+        ctx.writeAndFlush(upgradeResponse).addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                try {
+                    if (future.isSuccess()) {
+                        // Perform the upgrade to the new protocol.
+                        sourceCodec.upgradeFrom(ctx);
+                        finalUpgradeCodec.upgradeTo(ctx, request);
 
-            // Remove this handler from the pipeline.
-            ctx.pipeline().remove(HttpServerUpgradeHandler.this);
+                        // Notify that the upgrade has occurred. Retain the event to offset
+                        // the release() in the finally block.
+                        ctx.fireUserEventTriggered(event.retain());
 
-            // Notify that the upgrade has occurred. Retain the event to offset
-            // the release() in the finally block.
-            ctx.fireUserEventTriggered(event.retain());
-
-            // Add the listener last to avoid firing upgrade logic after
-            // the channel is already closed since the listener may fire
-            // immediately if the write failed eagerly.
-            writeComplete.addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
-        } finally {
-            // Release the event if the upgrade event wasn't fired.
-            event.release();
-        }
+                        // Remove this handler from the pipeline.
+                        ctx.pipeline().remove(HttpServerUpgradeHandler.this);
+                    } else {
+                        future.channel().close();
+                    }
+                } finally {
+                    // Release the event if the upgrade event wasn't fired.
+                    event.release();
+                }
+            }
+        });
         return true;
     }
 
@@ -357,6 +350,7 @@ public class HttpServerUpgradeHandler extends HttpObjectAggregator {
                 Unpooled.EMPTY_BUFFER, false);
         res.headers().add(HttpHeaderNames.CONNECTION, HttpHeaderValues.UPGRADE);
         res.headers().add(HttpHeaderNames.UPGRADE, upgradeProtocol);
+        res.headers().add(HttpHeaderNames.CONTENT_LENGTH, HttpHeaderValues.ZERO);
         return res;
     }
 

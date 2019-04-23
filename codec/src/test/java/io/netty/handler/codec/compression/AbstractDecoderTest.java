@@ -19,7 +19,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.experimental.theories.DataPoints;
@@ -63,14 +62,6 @@ public abstract class AbstractDecoderTest extends AbstractCompressionTest {
 
     @Before
     public abstract void initChannel();
-
-    @After
-    public void destroyChannel() {
-        if (channel != null) {
-            channel.finishAndReleaseAll();
-            channel = null;
-        }
-    }
 
     @DataPoints("smallData")
     public static ByteBuf[] smallData() {

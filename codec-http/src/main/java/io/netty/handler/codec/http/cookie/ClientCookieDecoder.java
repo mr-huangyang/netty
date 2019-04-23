@@ -15,11 +15,12 @@
  */
 package io.netty.handler.codec.http.cookie;
 
-import io.netty.handler.codec.DateFormatter;
-
-import java.util.Date;
-
 import static io.netty.util.internal.ObjectUtil.checkNotNull;
+
+import io.netty.handler.codec.http.HttpHeaderDateFormat;
+
+import java.text.ParsePosition;
+import java.util.Date;
 
 /**
  * A <a href="http://tools.ietf.org/html/rfc6265">RFC6265</a> compliant cookie decoder to be used client side.
@@ -82,42 +83,45 @@ public final class ClientCookieDecoder extends CookieDecoder {
             }
 
             int nameBegin = i;
-            int nameEnd;
-            int valueBegin;
-            int valueEnd;
+            int nameEnd = i;
+            int valueBegin = -1;
+            int valueEnd = -1;
 
-            for (;;) {
-                char curChar = header.charAt(i);
-                if (curChar == ';') {
-                    // NAME; (no value till ';')
-                    nameEnd = i;
-                    valueBegin = valueEnd = -1;
-                    break;
+            if (i != headerLen) {
+                keyValLoop: for (;;) {
 
-                } else if (curChar == '=') {
-                    // NAME=VALUE
-                    nameEnd = i;
-                    i++;
-                    if (i == headerLen) {
-                        // NAME= (empty value, i.e. nothing after '=')
-                        valueBegin = valueEnd = 0;
-                        break;
+                    char curChar = header.charAt(i);
+                    if (curChar == ';') {
+                        // NAME; (no value till ';')
+                        nameEnd = i;
+                        valueBegin = valueEnd = -1;
+                        break keyValLoop;
+
+                    } else if (curChar == '=') {
+                        // NAME=VALUE
+                        nameEnd = i;
+                        i++;
+                        if (i == headerLen) {
+                            // NAME= (empty value, i.e. nothing after '=')
+                            valueBegin = valueEnd = 0;
+                            break keyValLoop;
+                        }
+
+                        valueBegin = i;
+                        // NAME=VALUE;
+                        int semiPos = header.indexOf(';', i);
+                        valueEnd = i = semiPos > 0 ? semiPos : headerLen;
+                        break keyValLoop;
+                    } else {
+                        i++;
                     }
 
-                    valueBegin = i;
-                    // NAME=VALUE;
-                    int semiPos = header.indexOf(';', i);
-                    valueEnd = i = semiPos > 0 ? semiPos : headerLen;
-                    break;
-                } else {
-                    i++;
-                }
-
-                if (i == headerLen) {
-                    // NAME (no value till the end of string)
-                    nameEnd = headerLen;
-                    valueBegin = valueEnd = -1;
-                    break;
+                    if (i == headerLen) {
+                        // NAME (no value till the end of string)
+                        nameEnd = headerLen;
+                        valueBegin = valueEnd = -1;
+                        break;
+                    }
                 }
             }
 
@@ -140,7 +144,7 @@ public final class ClientCookieDecoder extends CookieDecoder {
                 cookieBuilder.appendAttribute(nameBegin, nameEnd, valueBegin, valueEnd);
             }
         }
-        return cookieBuilder != null ? cookieBuilder.cookie() : null;
+        return cookieBuilder.cookie();
     }
 
     private static class CookieBuilder {
@@ -155,7 +159,7 @@ public final class ClientCookieDecoder extends CookieDecoder {
         private boolean secure;
         private boolean httpOnly;
 
-        CookieBuilder(DefaultCookie cookie, String header) {
+        public CookieBuilder(DefaultCookie cookie, String header) {
             this.cookie = cookie;
             this.header = header;
         }
@@ -164,17 +168,20 @@ public final class ClientCookieDecoder extends CookieDecoder {
             // max age has precedence over expires
             if (maxAge != Long.MIN_VALUE) {
                 return maxAge;
-            } else if (isValueDefined(expiresStart, expiresEnd)) {
-                Date expiresDate = DateFormatter.parseHttpDate(header, expiresStart, expiresEnd);
-                if (expiresDate != null) {
-                    long maxAgeMillis = expiresDate.getTime() - System.currentTimeMillis();
-                    return maxAgeMillis / 1000 + (maxAgeMillis % 1000 != 0 ? 1 : 0);
+            } else {
+                String expires = computeValue(expiresStart, expiresEnd);
+                if (expires != null) {
+                    Date expiresDate = HttpHeaderDateFormat.get().parse(expires, new ParsePosition(0));
+                    if (expiresDate != null) {
+                        long maxAgeMillis = expiresDate.getTime() - System.currentTimeMillis();
+                        return maxAgeMillis / 1000 + (maxAgeMillis % 1000 != 0 ? 1 : 0);
+                    }
                 }
             }
             return Long.MIN_VALUE;
         }
 
-        Cookie cookie() {
+        public Cookie cookie() {
             cookie.setDomain(domain);
             cookie.setPath(path);
             cookie.setMaxAge(mergeMaxAgeAndExpires());
@@ -196,7 +203,7 @@ public final class ClientCookieDecoder extends CookieDecoder {
          * @param valueEnd
          *            where the value ends in the header
          */
-        void appendAttribute(int keyStart, int keyEnd, int valueStart, int valueEnd) {
+        public void appendAttribute(int keyStart, int keyEnd, int valueStart, int valueEnd) {
             int length = keyEnd - keyStart;
 
             if (length == 4) {
@@ -206,7 +213,7 @@ public final class ClientCookieDecoder extends CookieDecoder {
             } else if (length == 7) {
                 parse7(keyStart, valueStart, valueEnd);
             } else if (length == 8) {
-                parse8(keyStart);
+                parse8(keyStart, valueStart, valueEnd);
             }
         }
 
@@ -241,18 +248,14 @@ public final class ClientCookieDecoder extends CookieDecoder {
             }
         }
 
-        private void parse8(int nameStart) {
+        private void parse8(int nameStart, int valueStart, int valueEnd) {
             if (header.regionMatches(true, nameStart, CookieHeaderNames.HTTPONLY, 0, 8)) {
                 httpOnly = true;
             }
         }
 
-        private static boolean isValueDefined(int valueStart, int valueEnd) {
-            return valueStart != -1 && valueStart != valueEnd;
-        }
-
         private String computeValue(int valueStart, int valueEnd) {
-            return isValueDefined(valueStart, valueEnd) ? header.substring(valueStart, valueEnd) : null;
+            return valueStart == -1 || valueStart == valueEnd ? null : header.substring(valueStart, valueEnd);
         }
     }
 }

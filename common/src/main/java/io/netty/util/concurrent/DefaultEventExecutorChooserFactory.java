@@ -33,7 +33,7 @@ public final class DefaultEventExecutorChooserFactory implements EventExecutorCh
     @Override
     public EventExecutorChooser newChooser(EventExecutor[] executors) {
         if (isPowerOfTwo(executors.length)) {
-            return new PowerOfTwoEventExecutorChooser(executors);
+            return new PowerOfTowEventExecutorChooser(executors);
         } else {
             return new GenericEventExecutorChooser(executors);
         }
@@ -43,11 +43,11 @@ public final class DefaultEventExecutorChooserFactory implements EventExecutorCh
         return (val & -val) == val;
     }
 
-    private static final class PowerOfTwoEventExecutorChooser implements EventExecutorChooser {
+    private static final class PowerOfTowEventExecutorChooser implements EventExecutorChooser {
         private final AtomicInteger idx = new AtomicInteger();
         private final EventExecutor[] executors;
 
-        PowerOfTwoEventExecutorChooser(EventExecutor[] executors) {
+        PowerOfTowEventExecutorChooser(EventExecutor[] executors) {
             this.executors = executors;
         }
 
@@ -67,6 +67,7 @@ public final class DefaultEventExecutorChooserFactory implements EventExecutorCh
 
         @Override
         public EventExecutor next() {
+            //此算法是否会均衡分配
             return executors[Math.abs(idx.getAndIncrement() % executors.length)];
         }
     }

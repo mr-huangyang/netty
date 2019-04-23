@@ -22,7 +22,10 @@ import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.util.AttributeMap;
+import io.netty.util.concurrent.EventExecutor;
+import io.netty.util.concurrent.FutureListener;
 
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
@@ -73,6 +76,10 @@ import java.net.SocketAddress;
  * It is important to call {@link #close()} or {@link #close(ChannelPromise)} to release all
  * resources once you are done with the {@link Channel}. This ensures all resources are
  * released in a proper way, i.e. filehandles.
+ * <br/>
+ * # refer: EventLoop , ChannelPipeline,
+ * <br/>
+ * # 网络相关的操作从ChannelOutboundInvoker继承
  */
 public interface Channel extends AttributeMap, ChannelOutboundInvoker, Comparable<Channel> {
 
@@ -187,6 +194,10 @@ public interface Channel extends AttributeMap, ChannelOutboundInvoker, Comparabl
      */
     ByteBufAllocator alloc();
 
+    /**
+     * 向原生io 注册读事件
+     * @return
+     */
     @Override
     Channel read();
 
@@ -198,6 +209,7 @@ public interface Channel extends AttributeMap, ChannelOutboundInvoker, Comparabl
      * are only provided to implement the actual transport, and must be invoked from an I/O thread except for the
      * following methods:
      * <ul>
+     *   <li>{@link #invoker()}</li>
      *   <li>{@link #localAddress()}</li>
      *   <li>{@link #remoteAddress()}</li>
      *   <li>{@link #closeForcibly()}</li>

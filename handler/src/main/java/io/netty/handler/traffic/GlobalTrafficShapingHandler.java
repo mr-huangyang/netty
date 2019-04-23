@@ -111,11 +111,6 @@ public class GlobalTrafficShapingHandler extends AbstractTrafficShapingHandler {
         tc.start();
     }
 
-    @Override
-    protected int userDefinedWritabilityIndex() {
-        return AbstractTrafficShapingHandler.GLOBAL_DEFAULT_USER_DEFINED_WRITABILITY_INDEX;
-    }
-
     /**
      * Create a new instance.
      *
@@ -333,7 +328,7 @@ public class GlobalTrafficShapingHandler extends AbstractTrafficShapingHandler {
         Integer key = channel.hashCode();
         PerChannel perChannel = channelQueues.get(key);
         if (perChannel == null) {
-            // in case write occurs before handlerAdded is raised for this handler
+            // in case write occurs before handlerAdded is raized for this handler
             // imply a synchronized only if needed
             perChannel = getOrSetPerChannel(ctx);
         }

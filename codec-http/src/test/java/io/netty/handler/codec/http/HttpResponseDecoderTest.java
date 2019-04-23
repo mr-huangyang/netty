@@ -369,28 +369,6 @@ public class HttpResponseDecoderTest {
     }
 
     @Test
-    public void testResetContentResponseWithTransferEncoding() {
-        EmbeddedChannel ch = new EmbeddedChannel(new HttpResponseDecoder());
-        assertTrue(ch.writeInbound(Unpooled.copiedBuffer(
-                "HTTP/1.1 205 Reset Content\r\n" +
-                "Transfer-Encoding: chunked\r\n" +
-                "\r\n" +
-                "0\r\n" +
-                "\r\n",
-                CharsetUtil.US_ASCII)));
-
-        HttpResponse res = ch.readInbound();
-        assertThat(res.protocolVersion(), sameInstance(HttpVersion.HTTP_1_1));
-        assertThat(res.status(), is(HttpResponseStatus.RESET_CONTENT));
-
-        LastHttpContent lastContent = ch.readInbound();
-        assertThat(lastContent.content().isReadable(), is(false));
-        lastContent.release();
-
-        assertThat(ch.finish(), is(false));
-    }
-
-    @Test
     public void testLastResponseWithTrailingHeader() {
         EmbeddedChannel ch = new EmbeddedChannel(new HttpResponseDecoder());
         ch.writeInbound(Unpooled.copiedBuffer(
@@ -682,34 +660,5 @@ public class HttpResponseDecoderTest {
         assertTrue(message.decoderResult().isFailure());
         assertThat(message.decoderResult().cause(), instanceOf(PrematureChannelClosureException.class));
         assertNull(channel.readInbound());
-    }
-
-    @Test
-    public void testTrailerWithEmptyLineInSeparateBuffer() {
-        HttpResponseDecoder decoder = new HttpResponseDecoder();
-        EmbeddedChannel channel = new EmbeddedChannel(decoder);
-
-        String headers = "HTTP/1.1 200 OK\r\n"
-                + "Transfer-Encoding: chunked\r\n"
-                + "Trailer: My-Trailer\r\n";
-        assertFalse(channel.writeInbound(Unpooled.copiedBuffer(headers.getBytes(CharsetUtil.US_ASCII))));
-        assertTrue(channel.writeInbound(Unpooled.copiedBuffer("\r\n".getBytes(CharsetUtil.US_ASCII))));
-
-        assertTrue(channel.writeInbound(Unpooled.copiedBuffer("0\r\n", CharsetUtil.US_ASCII)));
-        assertTrue(channel.writeInbound(Unpooled.copiedBuffer("My-Trailer: 42\r\n", CharsetUtil.US_ASCII)));
-        assertTrue(channel.writeInbound(Unpooled.copiedBuffer("\r\n", CharsetUtil.US_ASCII)));
-
-        HttpResponse response = channel.readInbound();
-        assertEquals(2, response.headers().size());
-        assertEquals("chunked", response.headers().get(HttpHeaderNames.TRANSFER_ENCODING));
-        assertEquals("My-Trailer", response.headers().get(HttpHeaderNames.TRAILER));
-
-        LastHttpContent lastContent = channel.readInbound();
-        assertEquals(1, lastContent.trailingHeaders().size());
-        assertEquals("42", lastContent.trailingHeaders().get("My-Trailer"));
-        assertEquals(0, lastContent.content().readableBytes());
-        lastContent.release();
-
-        assertFalse(channel.finish());
     }
 }

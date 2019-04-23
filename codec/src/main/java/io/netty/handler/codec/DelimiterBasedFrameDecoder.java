@@ -15,8 +15,6 @@
  */
 package io.netty.handler.codec;
 
-import static io.netty.util.internal.ObjectUtil.checkPositive;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
@@ -348,6 +346,10 @@ public class DelimiterBasedFrameDecoder extends ByteToMessageDecoder {
     }
 
     private static void validateMaxFrameLength(int maxFrameLength) {
-        checkPositive(maxFrameLength, "maxFrameLength");
+        if (maxFrameLength <= 0) {
+            throw new IllegalArgumentException(
+                    "maxFrameLength must be a positive integer: " +
+                    maxFrameLength);
+        }
     }
 }

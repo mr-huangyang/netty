@@ -15,57 +15,19 @@
  */
 package io.netty.buffer;
 
-import io.netty.util.ResourceLeakTracker;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.ArrayDeque;
-import java.util.Queue;
-
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
 
 public class SimpleLeakAwareByteBufTest extends BigEndianHeapByteBufTest {
     private final Class<? extends ByteBuf> clazz = leakClass();
-    private final Queue<NoopResourceLeakTracker<ByteBuf>> trackers = new ArrayDeque<NoopResourceLeakTracker<ByteBuf>>();
 
     @Override
-    protected final ByteBuf newBuffer(int capacity, int maxCapacity) {
-        return wrap(super.newBuffer(capacity, maxCapacity));
+    protected final ByteBuf newBuffer(int capacity) {
+        return wrap(super.newBuffer(capacity));
     }
 
-    private ByteBuf wrap(ByteBuf buffer) {
-        NoopResourceLeakTracker<ByteBuf> tracker = new NoopResourceLeakTracker<ByteBuf>();
-        ByteBuf leakAwareBuf = wrap(buffer, tracker);
-        trackers.add(tracker);
-        return leakAwareBuf;
-    }
-
-    protected SimpleLeakAwareByteBuf wrap(ByteBuf buffer, ResourceLeakTracker<ByteBuf> tracker) {
-        return new SimpleLeakAwareByteBuf(buffer, tracker);
-    }
-
-    @Before
-    @Override
-    public void init() {
-        super.init();
-        trackers.clear();
-    }
-
-    @After
-    @Override
-    public void dispose() {
-        super.dispose();
-
-        for (;;) {
-            NoopResourceLeakTracker<ByteBuf> tracker = trackers.poll();
-
-            if (tracker == null) {
-                break;
-            }
-            assertTrue(tracker.get());
-        }
+    protected ByteBuf wrap(ByteBuf buffer) {
+        return new SimpleLeakAwareByteBuf(buffer, NoopResourceLeak.INSTANCE);
     }
 
     protected Class<? extends ByteBuf> leakClass() {
@@ -84,37 +46,22 @@ public class SimpleLeakAwareByteBufTest extends BigEndianHeapByteBufTest {
 
     @Test
     public void testWrapReadSlice() {
-        ByteBuf buffer = newBuffer(8);
-        if (buffer.isReadable()) {
-            assertWrapped(buffer.readSlice(1));
-        } else {
-            assertTrue(buffer.release());
-        }
+        assertWrapped(newBuffer(8).readSlice(1));
     }
 
     @Test
     public void testWrapRetainedSlice() {
-        ByteBuf buffer = newBuffer(8);
-        assertWrapped(buffer.retainedSlice());
-        assertTrue(buffer.release());
+        assertWrapped(newBuffer(8).retainedSlice());
     }
 
     @Test
     public void testWrapRetainedSlice2() {
-        ByteBuf buffer = newBuffer(8);
-        if (buffer.isReadable()) {
-            assertWrapped(buffer.retainedSlice(0, 1));
-        }
-        assertTrue(buffer.release());
+        assertWrapped(newBuffer(8).retainedSlice(0, 1));
     }
 
     @Test
     public void testWrapReadRetainedSlice() {
-        ByteBuf buffer = newBuffer(8);
-        if (buffer.isReadable()) {
-            assertWrapped(buffer.readRetainedSlice(1));
-        }
-        assertTrue(buffer.release());
+        assertWrapped(newBuffer(8).readRetainedSlice(1));
     }
 
     @Test
@@ -124,9 +71,7 @@ public class SimpleLeakAwareByteBufTest extends BigEndianHeapByteBufTest {
 
     @Test
     public void testWrapRetainedDuplicate() {
-        ByteBuf buffer = newBuffer(8);
-        assertWrapped(buffer.retainedDuplicate());
-        assertTrue(buffer.release());
+        assertWrapped(newBuffer(8).retainedDuplicate());
     }
 
     @Test
@@ -136,7 +81,7 @@ public class SimpleLeakAwareByteBufTest extends BigEndianHeapByteBufTest {
 
     protected final void assertWrapped(ByteBuf buf) {
         try {
-            assertSame(clazz, buf.getClass());
+            Assert.assertSame(clazz, buf.getClass());
         } finally {
             buf.release();
         }

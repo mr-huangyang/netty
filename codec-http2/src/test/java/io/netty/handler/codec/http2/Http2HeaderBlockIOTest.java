@@ -74,16 +74,16 @@ public class Http2HeaderBlockIOTest {
 
     @Test
     public void setMaxHeaderSizeShouldBeSuccessful() throws Http2Exception {
-        encoder.maxHeaderTableSize(10);
+        encoder.headerTable().maxHeaderTableSize(10);
         Http2Headers in = headers();
         assertRoundtripSuccessful(in);
-        assertEquals(10, decoder.maxHeaderTableSize());
+        assertEquals(10, decoder.headerTable().maxHeaderTableSize());
     }
 
     private void assertRoundtripSuccessful(Http2Headers in) throws Http2Exception {
-        encoder.encodeHeaders(3 /* randomly chosen */, in, buffer);
+        encoder.encodeHeaders(in, buffer);
 
-        Http2Headers out = decoder.decodeHeaders(0, buffer);
+        Http2Headers out = decoder.decodeHeaders(buffer);
         assertEquals(in, out);
     }
 

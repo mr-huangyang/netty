@@ -16,19 +16,30 @@
 
 package io.netty.resolver.dns;
 
+import io.netty.util.internal.PlatformDependent;
+
 import java.net.InetSocketAddress;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 final class RotationalDnsServerAddresses extends DefaultDnsServerAddresses {
 
-    private static final AtomicIntegerFieldUpdater<RotationalDnsServerAddresses> startIdxUpdater =
-            AtomicIntegerFieldUpdater.newUpdater(RotationalDnsServerAddresses.class, "startIdx");
+    private static final AtomicIntegerFieldUpdater<RotationalDnsServerAddresses> startIdxUpdater;
+
+    static {
+        AtomicIntegerFieldUpdater<RotationalDnsServerAddresses> updater =
+                PlatformDependent.newAtomicIntegerFieldUpdater(RotationalDnsServerAddresses.class, "startIdx");
+
+        if (updater == null) {
+            updater = AtomicIntegerFieldUpdater.newUpdater(RotationalDnsServerAddresses.class, "startIdx");
+        }
+
+        startIdxUpdater = updater;
+    }
 
     @SuppressWarnings("UnusedDeclaration")
     private volatile int startIdx;
 
-    RotationalDnsServerAddresses(List<InetSocketAddress> addresses) {
+    RotationalDnsServerAddresses(InetSocketAddress[] addresses) {
         super("rotational", addresses);
     }
 
@@ -37,7 +48,7 @@ final class RotationalDnsServerAddresses extends DefaultDnsServerAddresses {
         for (;;) {
             int curStartIdx = startIdx;
             int nextStartIdx = curStartIdx + 1;
-            if (nextStartIdx >= addresses.size()) {
+            if (nextStartIdx >= addresses.length) {
                 nextStartIdx = 0;
             }
             if (startIdxUpdater.compareAndSet(this, curStartIdx, nextStartIdx)) {

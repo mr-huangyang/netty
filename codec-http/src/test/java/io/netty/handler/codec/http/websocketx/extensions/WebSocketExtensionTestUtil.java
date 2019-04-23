@@ -19,6 +19,8 @@ import java.util.List;
 
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
+import org.easymock.EasyMock;
+import org.easymock.IArgumentMatcher;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.DefaultHttpRequest;
@@ -29,15 +31,13 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
-import org.mockito.ArgumentMatcher;
-
-import static org.mockito.Mockito.argThat;
+import io.netty.util.ReferenceCountUtil;
 
 public final class WebSocketExtensionTestUtil {
 
     public static HttpRequest newUpgradeRequest(String ext) {
-        HttpRequest req = new DefaultHttpRequest(
-                HttpVersion.HTTP_1_1, HttpMethod.GET, "/chat");
+        HttpRequest req = ReferenceCountUtil.releaseLater(new DefaultHttpRequest(
+                HttpVersion.HTTP_1_1, HttpMethod.GET, "/chat"));
 
         req.headers().set(HttpHeaderNames.HOST, "server.example.com");
         req.headers().set(HttpHeaderNames.UPGRADE, HttpHeaderValues.WEBSOCKET.toString().toLowerCase());
@@ -51,8 +51,8 @@ public final class WebSocketExtensionTestUtil {
     }
 
     public static HttpResponse newUpgradeResponse(String ext) {
-        HttpResponse res = new DefaultHttpResponse(
-                HttpVersion.HTTP_1_1, HttpResponseStatus.SWITCHING_PROTOCOLS);
+        HttpResponse res = ReferenceCountUtil.releaseLater(new DefaultHttpResponse(
+                HttpVersion.HTTP_1_1, HttpResponseStatus.SWITCHING_PROTOCOLS));
 
         res.headers().set(HttpHeaderNames.HOST, "server.example.com");
         res.headers().set(HttpHeaderNames.UPGRADE, HttpHeaderValues.WEBSOCKET.toString().toLowerCase());
@@ -65,22 +65,29 @@ public final class WebSocketExtensionTestUtil {
         return res;
     }
 
-    static final class WebSocketExtensionDataMatcher implements ArgumentMatcher<WebSocketExtensionData> {
+    public static WebSocketExtensionData webSocketExtensionDataEqual(String name) {
+        EasyMock.reportMatcher(new WebSocketExtensionDataMatcher(name));
+        return null;
+    }
+
+    public static class WebSocketExtensionDataMatcher implements IArgumentMatcher {
 
         private final String name;
 
-        WebSocketExtensionDataMatcher(String name) {
+        public WebSocketExtensionDataMatcher(String name) {
             this.name = name;
         }
 
         @Override
-        public boolean matches(WebSocketExtensionData data) {
-            return data != null && name.equals(data.name());
+        public void appendTo(StringBuffer buf) {
+            buf.append("WebSocketExtensionData with name=" + name);
         }
-    }
 
-    static WebSocketExtensionData webSocketExtensionDataMatcher(String text) {
-        return argThat(new WebSocketExtensionDataMatcher(text));
+        @Override
+        public boolean matches(Object o) {
+            return o instanceof WebSocketExtensionData &&
+                    name.equals(((WebSocketExtensionData) o).name());
+        }
     }
 
     private WebSocketExtensionTestUtil() {
@@ -118,4 +125,5 @@ public final class WebSocketExtensionTestUtil {
             // unused
         }
     }
+
 }

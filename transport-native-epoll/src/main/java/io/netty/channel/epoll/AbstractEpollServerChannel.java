@@ -23,6 +23,8 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoop;
 import io.netty.channel.ServerChannel;
+import io.netty.channel.unix.FileDescriptor;
+import io.netty.channel.unix.Socket;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -30,16 +32,32 @@ import java.net.SocketAddress;
 public abstract class AbstractEpollServerChannel extends AbstractEpollChannel implements ServerChannel {
     private static final ChannelMetadata METADATA = new ChannelMetadata(false, 16);
 
+    /**
+     * @deprecated Use {@link #AbstractEpollServerChannel(Socket, boolean)}.
+     */
+    @Deprecated
     protected AbstractEpollServerChannel(int fd) {
-        this(new LinuxSocket(fd), false);
+        this(new Socket(fd), false);
     }
 
-    AbstractEpollServerChannel(LinuxSocket fd) {
+    /**
+     * @deprecated Use {@link #AbstractEpollServerChannel(Socket, boolean)}.
+     */
+    @Deprecated
+    protected AbstractEpollServerChannel(FileDescriptor fd) {
+        this(new Socket(fd.intValue()));
+    }
+
+    /**
+     * @deprecated Use {@link #AbstractEpollServerChannel(Socket, boolean)}.
+     */
+    @Deprecated
+    protected AbstractEpollServerChannel(Socket fd) {
         this(fd, isSoErrorZero(fd));
     }
 
-    AbstractEpollServerChannel(LinuxSocket fd, boolean active) {
-        super(null, fd, active);
+    protected AbstractEpollServerChannel(Socket fd, boolean active) {
+        super(null, fd, Native.EPOLLIN, active);
     }
 
     @Override
@@ -89,17 +107,16 @@ public abstract class AbstractEpollServerChannel extends AbstractEpollChannel im
         @Override
         void epollInReady() {
             assert eventLoop().inEventLoop();
-            final ChannelConfig config = config();
-            if (shouldBreakEpollInReady(config)) {
+            if (fd().isInputShutdown()) {
                 clearEpollIn0();
                 return;
             }
+            final ChannelConfig config = config();
             final EpollRecvByteAllocatorHandle allocHandle = recvBufAllocHandle();
             allocHandle.edgeTriggered(isFlagSet(Native.EPOLLET));
 
             final ChannelPipeline pipeline = pipeline();
             allocHandle.reset(config);
-            allocHandle.attemptedBytesRead(1);
             epollInBefore();
 
             Throwable exception = null;
@@ -109,16 +126,16 @@ public abstract class AbstractEpollServerChannel extends AbstractEpollChannel im
                         // lastBytesRead represents the fd. We use lastBytesRead because it must be set so that the
                         // EpollRecvByteAllocatorHandle knows if it should try to read again or not when autoRead is
                         // enabled.
-                        allocHandle.lastBytesRead(socket.accept(acceptedAddress));
+                        allocHandle.lastBytesRead(fd().accept(acceptedAddress));
                         if (allocHandle.lastBytesRead() == -1) {
                             // this means everything was handled for now
                             break;
                         }
                         allocHandle.incMessagesRead(1);
 
+                        int len = acceptedAddress[0];
                         readPending = false;
-                        pipeline.fireChannelRead(newChildChannel(allocHandle.lastBytesRead(), acceptedAddress, 1,
-                                                                 acceptedAddress[0]));
+                        pipeline.fireChannelRead(newChildChannel(allocHandle.lastBytesRead(), acceptedAddress, 1, len));
                     } while (allocHandle.continueReading());
                 } catch (Throwable t) {
                     exception = t;
@@ -133,10 +150,5 @@ public abstract class AbstractEpollServerChannel extends AbstractEpollChannel im
                 epollInFinally(config);
             }
         }
-    }
-
-    @Override
-    protected boolean doConnect(SocketAddress remoteAddress, SocketAddress localAddress) throws Exception {
-        throw new UnsupportedOperationException();
     }
 }

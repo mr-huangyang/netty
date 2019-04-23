@@ -21,6 +21,7 @@ import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http.multipart.HttpPostBodyUtil.SeekAheadNoBackArrayException;
 import io.netty.handler.codec.http.multipart.HttpPostBodyUtil.SeekAheadOptimize;
 import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder.EndOfDataDecoderException;
 import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
@@ -35,7 +36,6 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import static io.netty.buffer.Unpooled.*;
-import static io.netty.util.internal.ObjectUtil.*;
 
 /**
  * This decoder will decode Body and can handle POST BODY.
@@ -145,9 +145,18 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      *             errors
      */
     public HttpPostStandardRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset) {
-        this.request = checkNotNull(request, "request");
-        this.charset = checkNotNull(charset, "charset");
-        this.factory = checkNotNull(factory, "factory");
+        if (factory == null) {
+            throw new NullPointerException("factory");
+        }
+        if (request == null) {
+            throw new NullPointerException("request");
+        }
+        if (charset == null) {
+            throw new NullPointerException("charset");
+        }
+        this.request = request;
+        this.charset = charset;
+        this.factory = factory;
         if (request instanceof HttpContent) {
             // Offer automatically if the given request is als type of HttpContent
             // See #1089
@@ -183,7 +192,10 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      */
     @Override
     public void setDiscardThreshold(int discardThreshold) {
-        this.discardThreshold = checkPositiveOrZero(discardThreshold, "discardThreshold");
+        if (discardThreshold < 0) {
+          throw new IllegalArgumentException("discardThreshold must be >= 0");
+        }
+        this.discardThreshold = discardThreshold;
     }
 
     /**
@@ -466,13 +478,21 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
                 }
                 firstpos = currentpos;
                 currentStatus = MultiPartStatus.EPILOGUE;
-            } else if (contRead && currentAttribute != null && currentStatus == MultiPartStatus.FIELD) {
-                // reset index except if to continue in case of FIELD getStatus
-                currentAttribute.addContent(undecodedChunk.copy(firstpos, currentpos - firstpos),
-                                            false);
-                firstpos = currentpos;
+                undecodedChunk.readerIndex(firstpos);
+                return;
             }
-            undecodedChunk.readerIndex(firstpos);
+            if (contRead && currentAttribute != null) {
+                // reset index except if to continue in case of FIELD getStatus
+                if (currentStatus == MultiPartStatus.FIELD) {
+                    currentAttribute.addContent(undecodedChunk.copy(firstpos, currentpos - firstpos),
+                                                false);
+                    firstpos = currentpos;
+                }
+                undecodedChunk.readerIndex(firstpos);
+            } else {
+                // end of line or end of block so keep index to last valid position
+                undecodedChunk.readerIndex(firstpos);
+            }
         } catch (ErrorDataDecoderException e) {
             // error while decoding
             undecodedChunk.readerIndex(firstpos);
@@ -493,11 +513,13 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
      *             errors
      */
     private void parseBodyAttributes() {
-        if (!undecodedChunk.hasArray()) {
+        SeekAheadOptimize sao;
+        try {
+            sao = new SeekAheadOptimize(undecodedChunk);
+        } catch (SeekAheadNoBackArrayException ignored) {
             parseBodyAttributesStandard();
             return;
         }
-        SeekAheadOptimize sao = new SeekAheadOptimize(undecodedChunk);
         int firstpos = undecodedChunk.readerIndex();
         int currentpos = firstpos;
         int equalpos;
@@ -588,13 +610,21 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
                 }
                 firstpos = currentpos;
                 currentStatus = MultiPartStatus.EPILOGUE;
-            } else if (contRead && currentAttribute != null && currentStatus == MultiPartStatus.FIELD) {
-                // reset index except if to continue in case of FIELD getStatus
-                currentAttribute.addContent(undecodedChunk.copy(firstpos, currentpos - firstpos),
-                                            false);
-                firstpos = currentpos;
+                undecodedChunk.readerIndex(firstpos);
+                return;
             }
-            undecodedChunk.readerIndex(firstpos);
+            if (contRead && currentAttribute != null) {
+                // reset index except if to continue in case of FIELD getStatus
+                if (currentStatus == MultiPartStatus.FIELD) {
+                    currentAttribute.addContent(undecodedChunk.copy(firstpos, currentpos - firstpos),
+                                                false);
+                    firstpos = currentpos;
+                }
+                undecodedChunk.readerIndex(firstpos);
+            } else {
+                // end of line or end of block so keep index to last valid position
+                undecodedChunk.readerIndex(firstpos);
+            }
         } catch (ErrorDataDecoderException e) {
             // error while decoding
             undecodedChunk.readerIndex(firstpos);
@@ -632,24 +662,64 @@ public class HttpPostStandardRequestDecoder implements InterfaceHttpPostRequestD
     }
 
     /**
+     * Skip control Characters
+     */
+    void skipControlCharacters() {
+        SeekAheadOptimize sao;
+        try {
+            sao = new SeekAheadOptimize(undecodedChunk);
+        } catch (SeekAheadNoBackArrayException ignored) {
+            try {
+                skipControlCharactersStandard();
+            } catch (IndexOutOfBoundsException e) {
+                throw new NotEnoughDataDecoderException(e);
+            }
+            return;
+        }
+
+        while (sao.pos < sao.limit) {
+            char c = (char) (sao.bytes[sao.pos++] & 0xFF);
+            if (!Character.isISOControl(c) && !Character.isWhitespace(c)) {
+                sao.setReadPosition(1);
+                return;
+            }
+        }
+        throw new NotEnoughDataDecoderException("Access out of bounds");
+    }
+
+    void skipControlCharactersStandard() {
+        for (;;) {
+            char c = (char) undecodedChunk.readUnsignedByte();
+            if (!Character.isISOControl(c) && !Character.isWhitespace(c)) {
+                undecodedChunk.readerIndex(undecodedChunk.readerIndex() - 1);
+                break;
+            }
+        }
+    }
+
+    /**
      * Destroy the {@link HttpPostStandardRequestDecoder} and release all it resources. After this method
      * was called it is not possible to operate on it anymore.
      */
     @Override
     public void destroy() {
-        // Release all data items, including those not yet pulled
+        checkDestroyed();
         cleanFiles();
-
         destroyed = true;
 
         if (undecodedChunk != null && undecodedChunk.refCnt() > 0) {
             undecodedChunk.release();
             undecodedChunk = null;
         }
+
+        // release all data which was not yet pulled
+        for (int i = bodyListHttpDataRank; i < bodyListHttpData.size(); i++) {
+            bodyListHttpData.get(i).release();
+        }
     }
 
     /**
-     * Clean all {@link HttpData}s for the current request.
+     * Clean all HttpDatas (on Disk) for the current request.
      */
     @Override
     public void cleanFiles() {

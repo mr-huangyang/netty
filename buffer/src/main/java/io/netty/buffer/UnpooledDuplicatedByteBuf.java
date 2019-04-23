@@ -19,7 +19,7 @@ package io.netty.buffer;
  * {@link DuplicatedByteBuf} implementation that can do optimizations because it knows the duplicated buffer
  * is of type {@link AbstractByteBuf}.
  */
-class UnpooledDuplicatedByteBuf extends DuplicatedByteBuf {
+final class UnpooledDuplicatedByteBuf extends DuplicatedByteBuf {
     UnpooledDuplicatedByteBuf(AbstractByteBuf buffer) {
         super(buffer);
     }

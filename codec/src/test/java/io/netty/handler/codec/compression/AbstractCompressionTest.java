@@ -15,17 +15,17 @@
  */
 package io.netty.handler.codec.compression;
 
-import java.util.Random;
+import io.netty.util.internal.ThreadLocalRandom;
 
 public abstract class AbstractCompressionTest {
 
-    protected static final Random rand;
+    protected static final ThreadLocalRandom rand;
 
     protected static final byte[] BYTES_SMALL = new byte[256];
     protected static final byte[] BYTES_LARGE = new byte[256 * 1024];
 
     static {
-        rand = new Random();
+        rand = ThreadLocalRandom.current();
         fillArrayWithCompressibleData(BYTES_SMALL);
         fillArrayWithCompressibleData(BYTES_LARGE);
     }

@@ -25,12 +25,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyBoolean;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.anyLong;
-import static org.mockito.Mockito.anyShort;
-import static org.mockito.Mockito.eq;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -45,10 +44,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelConfig;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelMetadata;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.DefaultChannelPromise;
-import io.netty.channel.DefaultMessageSizeEstimator;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.ImmediateEventExecutor;
@@ -82,9 +79,6 @@ public class StreamBufferingEncoderTest {
 
     @Mock
     private Channel channel;
-
-    @Mock
-    private Channel.Unsafe unsafe;
 
     @Mock
     private ChannelConfig config;
@@ -142,10 +136,6 @@ public class StreamBufferingEncoderTest {
         when(channel.isWritable()).thenReturn(true);
         when(channel.bytesBeforeUnwritable()).thenReturn(Long.MAX_VALUE);
         when(config.getWriteBufferHighWaterMark()).thenReturn(Integer.MAX_VALUE);
-        when(config.getMessageSizeEstimator()).thenReturn(DefaultMessageSizeEstimator.DEFAULT);
-        ChannelMetadata metadata = new ChannelMetadata(false, 16);
-        when(channel.metadata()).thenReturn(metadata);
-        when(channel.unsafe()).thenReturn(unsafe);
         handler.handlerAdded(ctx);
     }
 
@@ -222,7 +212,7 @@ public class StreamBufferingEncoderTest {
     }
 
     @Test
-    public void bufferingNewStreamFailsAfterGoAwayReceived() throws Http2Exception {
+    public void bufferingNewStreamFailsAfterGoAwayReceived() {
         encoder.writeSettingsAck(ctx, newPromise());
         setMaxConcurrentStreams(0);
         connection.goAwayReceived(1, 8, EMPTY_BUFFER);
@@ -235,7 +225,7 @@ public class StreamBufferingEncoderTest {
     }
 
     @Test
-    public void receivingGoAwayFailsBufferedStreams() throws Http2Exception {
+    public void receivingGoAwayFailsBufferedStreams() {
         encoder.writeSettingsAck(ctx, newPromise());
         setMaxConcurrentStreams(5);
 
@@ -256,7 +246,7 @@ public class StreamBufferingEncoderTest {
                 failCount++;
             }
         }
-        assertEquals(9, failCount);
+        assertEquals(4, failCount);
         assertEquals(0, encoder.numBufferedStreams());
     }
 
@@ -264,11 +254,6 @@ public class StreamBufferingEncoderTest {
     public void sendingGoAwayShouldNotFailStreams() {
         encoder.writeSettingsAck(ctx, newPromise());
         setMaxConcurrentStreams(1);
-
-        when(writer.writeHeaders(any(ChannelHandlerContext.class), anyInt(), any(Http2Headers.class), anyInt(),
-              anyBoolean(), any(ChannelPromise.class))).thenAnswer(successAnswer());
-        when(writer.writeHeaders(any(ChannelHandlerContext.class), anyInt(), any(Http2Headers.class), anyInt(),
-              anyShort(), anyBoolean(), anyInt(), anyBoolean(), any(ChannelPromise.class))).thenAnswer(successAnswer());
 
         ChannelFuture f1 = encoderWriteHeaders(3, newPromise());
         assertEquals(0, encoder.numBufferedStreams());
@@ -470,7 +455,7 @@ public class StreamBufferingEncoderTest {
     @Test
     public void closeShouldCancelAllBufferedStreams() throws Http2Exception {
         encoder.writeSettingsAck(ctx, newPromise());
-        connection.local().maxActiveStreams(0);
+        connection.local().maxStreams(0, 0);
 
         ChannelFuture f1 = encoderWriteHeaders(3, newPromise());
         ChannelFuture f2 = encoderWriteHeaders(5, newPromise());
@@ -503,7 +488,7 @@ public class StreamBufferingEncoderTest {
 
     private ChannelFuture encoderWriteHeaders(int streamId, ChannelPromise promise) {
         encoder.writeHeaders(ctx, streamId, new DefaultHttp2Headers(), 0, DEFAULT_PRIORITY_WEIGHT,
-                             false, 0, false, promise);
+                false, 0, false, promise);
         try {
             encoder.flowController().writePendingBytes();
             return promise;
@@ -514,8 +499,8 @@ public class StreamBufferingEncoderTest {
 
     private void writeVerifyWriteHeaders(VerificationMode mode, int streamId) {
         verify(writer, mode).writeHeaders(eq(ctx), eq(streamId), any(Http2Headers.class), eq(0),
-                                          eq(DEFAULT_PRIORITY_WEIGHT), eq(false), eq(0),
-                                          eq(false), any(ChannelPromise.class));
+                eq(DEFAULT_PRIORITY_WEIGHT), eq(false), eq(0),
+                eq(false), any(ChannelPromise.class));
     }
 
     private Answer<ChannelFuture> successAnswer() {

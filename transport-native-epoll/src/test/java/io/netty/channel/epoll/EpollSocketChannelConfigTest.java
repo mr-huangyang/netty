@@ -20,17 +20,13 @@ import static org.junit.Assume.*;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelException;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
-import java.util.Map;
 import java.util.Random;
 
-import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -41,18 +37,9 @@ public class EpollSocketChannelConfigTest {
     private static Random rand;
 
     @BeforeClass
-    public static void beforeClass() {
+    public static void before() {
         rand = new Random();
         group = new EpollEventLoopGroup(1);
-    }
-
-    @AfterClass
-    public static void afterClass() {
-        group.shutdownGracefully();
-    }
-
-    @Before
-    public void setup() {
         Bootstrap bootstrap = new Bootstrap();
         ch = (EpollSocketChannel) bootstrap.group(group)
                 .channel(EpollSocketChannel.class)
@@ -60,16 +47,20 @@ public class EpollSocketChannelConfigTest {
                 .bind(new InetSocketAddress(0)).syncUninterruptibly().channel();
     }
 
-    @After
-    public void teardown() {
-        ch.close().syncUninterruptibly();
+    @AfterClass
+    public static void after() {
+        try {
+            ch.close().syncUninterruptibly();
+        } finally {
+            group.shutdownGracefully();
+        }
     }
 
-    private static long randLong(long min, long max) {
+    private long randLong(long min, long max) {
         return min + nextLong(max - min + 1);
     }
 
-    private static long nextLong(long n) {
+    private long nextLong(long n) {
         long bits, val;
         do {
            bits = (rand.nextLong() << 1) >>> 1;
@@ -149,16 +140,10 @@ public class EpollSocketChannelConfigTest {
     public void testGetOptionWhenClosed() {
         ch.close().syncUninterruptibly();
         try {
-            ch.config().getSoLinger();
+        ch.config().getSoLinger();
             fail();
         } catch (ChannelException e) {
             assertTrue(e.getCause() instanceof ClosedChannelException);
         }
-    }
-
-    @Test
-    public void getGetOptions() {
-        Map<ChannelOption<?>, Object> map = ch.config().getOptions();
-        assertFalse(map.isEmpty());
     }
 }

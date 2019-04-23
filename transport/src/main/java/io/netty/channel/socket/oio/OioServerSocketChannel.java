@@ -20,7 +20,6 @@ import io.netty.channel.ChannelMetadata;
 import io.netty.channel.ChannelOutboundBuffer;
 import io.netty.channel.oio.AbstractOioMessageChannel;
 import io.netty.channel.socket.ServerSocketChannel;
-import io.netty.util.internal.SocketUtils;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
@@ -38,10 +37,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * {@link ServerSocketChannel} which accepts new connections and create the {@link OioSocketChannel}'s for them.
  *
  * This implementation use Old-Blocking-IO.
- *
- * @deprecated use NIO / EPOLL / KQUEUE transport.
  */
-@Deprecated
 public class OioServerSocketChannel extends AbstractOioMessageChannel
                                     implements ServerSocketChannel {
 
@@ -135,7 +131,7 @@ public class OioServerSocketChannel extends AbstractOioMessageChannel
 
     @Override
     protected SocketAddress localAddress0() {
-        return SocketUtils.localSocketAddress(socket);
+        return socket.getLocalSocketAddress();
     }
 
     @Override

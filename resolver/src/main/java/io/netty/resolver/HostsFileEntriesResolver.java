@@ -15,14 +15,11 @@
  */
 package io.netty.resolver;
 
-import io.netty.util.internal.UnstableApi;
-
 import java.net.InetAddress;
 
 /**
  * Resolves a hostname against the hosts file entries.
  */
-@UnstableApi
 public interface HostsFileEntriesResolver {
 
     /**
@@ -30,11 +27,5 @@ public interface HostsFileEntriesResolver {
      */
     HostsFileEntriesResolver DEFAULT = new DefaultHostsFileEntriesResolver();
 
-    /**
-     * Resolve the address of a hostname against the entries in a hosts file, depending on some address types.
-     * @param inetHost the hostname to resolve
-     * @param resolvedAddressTypes the address types to resolve
-     * @return the first matching address
-     */
-    InetAddress address(String inetHost, ResolvedAddressTypes resolvedAddressTypes);
+    InetAddress address(String inetHost);
 }

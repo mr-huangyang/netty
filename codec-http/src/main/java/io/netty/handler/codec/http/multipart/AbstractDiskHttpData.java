@@ -115,13 +115,7 @@ public abstract class AbstractDiskHttpData extends AbstractHttpData {
             if (buffer.readableBytes() == 0) {
                 // empty file
                 if (!file.createNewFile()) {
-                    if (file.length() == 0) {
-                        return;
-                    } else {
-                        if (!file.delete() || !file.createNewFile()) {
-                            throw new IOException("file exists already: " + file);
-                        }
-                    }
+                    throw new IOException("file exists already: " + file);
                 }
                 return;
             }

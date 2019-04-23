@@ -28,11 +28,8 @@ import io.netty.handler.codec.http.websocketx.ContinuationWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.handler.codec.http.websocketx.extensions.WebSocketExtensionDecoder;
-import io.netty.handler.codec.http.websocketx.extensions.WebSocketExtensionFilter;
 
 import java.util.List;
-
-import static io.netty.util.internal.ObjectUtil.*;
 
 /**
  * Deflate implementation of a payload decompressor for
@@ -43,26 +40,15 @@ abstract class DeflateDecoder extends WebSocketExtensionDecoder {
     static final byte[] FRAME_TAIL = new byte[] {0x00, 0x00, (byte) 0xff, (byte) 0xff};
 
     private final boolean noContext;
-    private final WebSocketExtensionFilter extensionDecoderFilter;
 
     private EmbeddedChannel decoder;
 
     /**
      * Constructor
-     *
      * @param noContext true to disable context takeover.
-     * @param extensionDecoderFilter extension decoder filter.
      */
-    DeflateDecoder(boolean noContext, WebSocketExtensionFilter extensionDecoderFilter) {
+    public DeflateDecoder(boolean noContext) {
         this.noContext = noContext;
-        this.extensionDecoderFilter = checkNotNull(extensionDecoderFilter, "extensionDecoderFilter");
-    }
-
-    /**
-     * Returns the extension decoder filter.
-     */
-    protected WebSocketExtensionFilter extensionDecoderFilter() {
-        return extensionDecoderFilter;
     }
 
     protected abstract boolean appendFrameTail(WebSocketFrame msg);

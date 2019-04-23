@@ -17,6 +17,9 @@ package io.netty.handler.codec.http.cookie;
 
 import org.junit.Test;
 
+import io.netty.handler.codec.http.HttpHeaderDateFormat;
+
+import java.util.Date;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -26,6 +29,9 @@ public class ServerCookieDecoderTest {
     @Test
     public void testDecodingSingleCookie() {
         String cookieString = "myCookie=myValue";
+        cookieString = cookieString.replace("XXX",
+                HttpHeaderDateFormat.get().format(new Date(System.currentTimeMillis() + 50000)));
+
         Set<Cookie> cookies = ServerCookieDecoder.STRICT.decode(cookieString);
         assertEquals(1, cookies.size());
         Cookie cookie = cookies.iterator().next();

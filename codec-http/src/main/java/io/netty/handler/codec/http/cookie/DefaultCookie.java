@@ -28,7 +28,7 @@ public class DefaultCookie implements Cookie {
     private boolean wrap;
     private String domain;
     private String path;
-    private long maxAge = UNDEFINED_MAX_AGE;
+    private long maxAge = Long.MIN_VALUE;
     private boolean secure;
     private boolean httpOnly;
 
@@ -153,6 +153,8 @@ public class DefaultCookie implements Cookie {
             if (that.domain() != null) {
                 return false;
             }
+        } else if (that.domain() == null) {
+            return false;
         } else {
             return domain().equalsIgnoreCase(that.domain());
         }

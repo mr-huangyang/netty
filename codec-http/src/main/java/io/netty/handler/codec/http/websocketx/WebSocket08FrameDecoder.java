@@ -137,8 +137,8 @@ public class WebSocket08FrameDecoder extends ByteToMessageDecoder
      *            Maximum length of a frame's payload. Setting this to an appropriate value for you application
      *            helps check for denial of services attacks.
      * @param allowMaskMismatch
-     *            When set to true, frames which are not masked properly according to the standard will still be
-     *            accepted.
+     *            Allows to loosen the masking requirement on received frames. When this is set to false then also
+     *            frames which are not masked properly according to the standard will still be accepted.
      */
     public WebSocket08FrameDecoder(boolean expectMaskedFrames, boolean allowExtensions, int maxFramePayloadLength,
                                    boolean allowMaskMismatch) {
@@ -451,7 +451,7 @@ public class WebSocket08FrameDecoder extends ByteToMessageDecoder
         // Must have 2 byte integer within the valid range
         int statusCode = buffer.readShort();
         if (statusCode >= 0 && statusCode <= 999 || statusCode >= 1004 && statusCode <= 1006
-                || statusCode >= 1015 && statusCode <= 2999) {
+                || statusCode >= 1012 && statusCode <= 2999) {
             protocolViolation(ctx, "Invalid close frame getStatus code: " + statusCode);
         }
 

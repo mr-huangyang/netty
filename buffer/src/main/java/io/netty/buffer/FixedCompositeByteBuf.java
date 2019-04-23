@@ -39,11 +39,11 @@ final class FixedCompositeByteBuf extends AbstractReferenceCountedByteBuf {
     private final int capacity;
     private final ByteBufAllocator allocator;
     private final ByteOrder order;
-    private final ByteBuf[] buffers;
+    private final Object[] buffers;
     private final boolean direct;
 
     FixedCompositeByteBuf(ByteBufAllocator allocator, ByteBuf... buffers) {
-        super(AbstractByteBufAllocator.DEFAULT_MAX_CAPACITY);
+        super(Integer.MAX_VALUE);
         if (buffers.length == 0) {
             this.buffers = EMPTY;
             order = ByteOrder.BIG_ENDIAN;
@@ -52,7 +52,8 @@ final class FixedCompositeByteBuf extends AbstractReferenceCountedByteBuf {
             direct = false;
         } else {
             ByteBuf b = buffers[0];
-            this.buffers = buffers;
+            this.buffers = new Object[buffers.length];
+            this.buffers[0] = b;
             boolean direct = true;
             int nioBufferCount = b.nioBufferCount();
             int capacity = b.readableBytes();
@@ -67,6 +68,7 @@ final class FixedCompositeByteBuf extends AbstractReferenceCountedByteBuf {
                 if (!b.isDirect()) {
                     direct = false;
                 }
+                this.buffers[i] = b;
             }
             this.nioBufferCount = nioBufferCount;
             this.capacity = capacity;
@@ -230,15 +232,21 @@ final class FixedCompositeByteBuf extends AbstractReferenceCountedByteBuf {
         int readable = 0;
         for (int i = 0 ; i < buffers.length; i++) {
             Component comp = null;
-            ByteBuf b = buffers[i];
-            if (b instanceof Component) {
-                comp = (Component) b;
+            ByteBuf b;
+            Object obj = buffers[i];
+            boolean isBuffer;
+            if (obj instanceof ByteBuf) {
+                b = (ByteBuf) obj;
+                isBuffer = true;
+            } else {
+                comp = (Component) obj;
                 b = comp.buf;
+                isBuffer = false;
             }
             readable += b.readableBytes();
             if (index < readable) {
-                if (comp == null) {
-                    // Create a new component and store it in the array so it not create a new object
+                if (isBuffer) {
+                    // Create a new component ad store ti in the array so it not create a new object
                     // on the next access.
                     comp = new Component(i, readable - b.readableBytes(), b);
                     buffers[i] = comp;
@@ -253,8 +261,11 @@ final class FixedCompositeByteBuf extends AbstractReferenceCountedByteBuf {
      * Return the {@link ByteBuf} stored at the given index of the array.
      */
     private ByteBuf buffer(int i) {
-        ByteBuf b = buffers[i];
-        return b instanceof Component ? ((Component) b).buf : b;
+        Object obj = buffers[i];
+        if (obj instanceof ByteBuf) {
+            return (ByteBuf) obj;
+        }
+        return ((Component) obj).buf;
     }
 
     @Override
@@ -593,7 +604,7 @@ final class FixedCompositeByteBuf extends AbstractReferenceCountedByteBuf {
                 s = buffer(++i);
             }
 
-            return array.toArray(new ByteBuffer[0]);
+            return array.toArray(new ByteBuffer[array.size()]);
         } finally {
             array.recycle();
         }
@@ -601,62 +612,27 @@ final class FixedCompositeByteBuf extends AbstractReferenceCountedByteBuf {
 
     @Override
     public boolean hasArray() {
-        switch (buffers.length) {
-            case 0:
-                return true;
-            case 1:
-                return buffer(0).hasArray();
-            default:
-                return false;
-        }
+        return false;
     }
 
     @Override
     public byte[] array() {
-        switch (buffers.length) {
-            case 0:
-                return EmptyArrays.EMPTY_BYTES;
-            case 1:
-                return buffer(0).array();
-            default:
-                throw new UnsupportedOperationException();
-        }
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public int arrayOffset() {
-        switch (buffers.length) {
-            case 0:
-                return 0;
-            case 1:
-                return buffer(0).arrayOffset();
-            default:
-                throw new UnsupportedOperationException();
-        }
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public boolean hasMemoryAddress() {
-        switch (buffers.length) {
-            case 0:
-                return Unpooled.EMPTY_BUFFER.hasMemoryAddress();
-            case 1:
-                return buffer(0).hasMemoryAddress();
-            default:
-                return false;
-        }
+        return false;
     }
 
     @Override
     public long memoryAddress() {
-        switch (buffers.length) {
-            case 0:
-                return Unpooled.EMPTY_BUFFER.memoryAddress();
-            case 1:
-                return buffer(0).memoryAddress();
-            default:
-                throw new UnsupportedOperationException();
-        }
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -673,16 +649,17 @@ final class FixedCompositeByteBuf extends AbstractReferenceCountedByteBuf {
         return result + ", components=" + buffers.length + ')';
     }
 
-    private static final class Component extends WrappedByteBuf {
+    private static final class Component {
         private final int index;
         private final int offset;
+        private final ByteBuf buf;
         private final int endOffset;
 
         Component(int index, int offset, ByteBuf buf) {
-            super(buf);
             this.index = index;
             this.offset = offset;
             endOffset = offset + buf.readableBytes();
+            this.buf = buf;
         }
     }
 }

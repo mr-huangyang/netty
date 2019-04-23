@@ -17,14 +17,12 @@ package io.netty.channel.epoll;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.net.InetSocketAddress;
-import java.util.Map;
 
 import static org.junit.Assert.*;
 
@@ -76,11 +74,5 @@ public class EpollServerSocketChannelConfigTest {
         assertFalse(ch.config().isFreeBind());
         ch.config().setFreeBind(true);
         assertTrue(ch.config().isFreeBind());
-    }
-
-    @Test
-    public void getGetOptions() {
-        Map<ChannelOption<?>, Object> map = ch.config().getOptions();
-        assertFalse(map.isEmpty());
     }
 }

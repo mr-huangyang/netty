@@ -16,6 +16,7 @@
 package io.netty.channel;
 
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.util.internal.PlatformDependent;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -29,15 +30,13 @@ import static io.netty.channel.ChannelOption.AUTO_READ;
 import static io.netty.channel.ChannelOption.CONNECT_TIMEOUT_MILLIS;
 import static io.netty.channel.ChannelOption.MAX_MESSAGES_PER_READ;
 import static io.netty.channel.ChannelOption.MESSAGE_SIZE_ESTIMATOR;
-import static io.netty.channel.ChannelOption.RCVBUF_ALLOCATOR;
 import static io.netty.channel.ChannelOption.SINGLE_EVENTEXECUTOR_PER_GROUP;
+import static io.netty.channel.ChannelOption.RCVBUF_ALLOCATOR;
 import static io.netty.channel.ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK;
 import static io.netty.channel.ChannelOption.WRITE_BUFFER_LOW_WATER_MARK;
 import static io.netty.channel.ChannelOption.WRITE_BUFFER_WATER_MARK;
 import static io.netty.channel.ChannelOption.WRITE_SPIN_COUNT;
 import static io.netty.util.internal.ObjectUtil.checkNotNull;
-import static io.netty.util.internal.ObjectUtil.checkPositive;
-import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 
 /**
  * The default {@link ChannelConfig} implementation.
@@ -47,11 +46,25 @@ public class DefaultChannelConfig implements ChannelConfig {
 
     private static final int DEFAULT_CONNECT_TIMEOUT = 30000;
 
-    private static final AtomicIntegerFieldUpdater<DefaultChannelConfig> AUTOREAD_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(DefaultChannelConfig.class, "autoRead");
-    private static final AtomicReferenceFieldUpdater<DefaultChannelConfig, WriteBufferWaterMark> WATERMARK_UPDATER =
-            AtomicReferenceFieldUpdater.newUpdater(
+    private static final AtomicIntegerFieldUpdater<DefaultChannelConfig> AUTOREAD_UPDATER;
+    private static final AtomicReferenceFieldUpdater<DefaultChannelConfig, WriteBufferWaterMark> WATERMARK_UPDATER;
+
+    static {
+        AtomicIntegerFieldUpdater<DefaultChannelConfig> autoReadUpdater =
+            PlatformDependent.newAtomicIntegerFieldUpdater(DefaultChannelConfig.class, "autoRead");
+        if (autoReadUpdater == null) {
+            autoReadUpdater = AtomicIntegerFieldUpdater.newUpdater(DefaultChannelConfig.class, "autoRead");
+        }
+        AUTOREAD_UPDATER = autoReadUpdater;
+
+        AtomicReferenceFieldUpdater<DefaultChannelConfig, WriteBufferWaterMark> watermarkUpdater =
+                PlatformDependent.newAtomicReferenceFieldUpdater(DefaultChannelConfig.class, "writeBufferWaterMark");
+        if (watermarkUpdater == null) {
+            watermarkUpdater = AtomicReferenceFieldUpdater.newUpdater(
                     DefaultChannelConfig.class, WriteBufferWaterMark.class, "writeBufferWaterMark");
+        }
+        WATERMARK_UPDATER = watermarkUpdater;
+    }
 
     protected final Channel channel;
 
@@ -211,7 +224,10 @@ public class DefaultChannelConfig implements ChannelConfig {
 
     @Override
     public ChannelConfig setConnectTimeoutMillis(int connectTimeoutMillis) {
-        checkPositiveOrZero(connectTimeoutMillis, "connectTimeoutMillis");
+        if (connectTimeoutMillis < 0) {
+            throw new IllegalArgumentException(String.format(
+                    "connectTimeoutMillis: %d (expected: >= 0)", connectTimeoutMillis));
+        }
         this.connectTimeoutMillis = connectTimeoutMillis;
         return this;
     }
@@ -260,13 +276,9 @@ public class DefaultChannelConfig implements ChannelConfig {
 
     @Override
     public ChannelConfig setWriteSpinCount(int writeSpinCount) {
-        checkPositive(writeSpinCount, "writeSpinCount");
-        // Integer.MAX_VALUE is used as a special value in the channel implementations to indicate the channel cannot
-        // accept any more data, and results in the writeOp being set on the selector (or execute a runnable which tries
-        // to flush later because the writeSpinCount quantum has been exhausted). This strategy prevents additional
-        // conditional logic in the channel implementations, and shouldn't be noticeable in practice.
-        if (writeSpinCount == Integer.MAX_VALUE) {
-            --writeSpinCount;
+        if (writeSpinCount <= 0) {
+            throw new IllegalArgumentException(
+                    "writeSpinCount must be a positive integer.");
         }
         this.writeSpinCount = writeSpinCount;
         return this;
@@ -310,7 +322,7 @@ public class DefaultChannelConfig implements ChannelConfig {
         } else if (allocator == null) {
             throw new NullPointerException("allocator");
         }
-        setRecvByteBufAllocator(allocator);
+        rcvBufAllocator = allocator;
     }
 
     @Override
@@ -347,13 +359,18 @@ public class DefaultChannelConfig implements ChannelConfig {
     }
 
     @Override
+    @Deprecated
     public int getWriteBufferHighWaterMark() {
         return writeBufferWaterMark.high();
     }
 
     @Override
+    @Deprecated
     public ChannelConfig setWriteBufferHighWaterMark(int writeBufferHighWaterMark) {
-        checkPositiveOrZero(writeBufferHighWaterMark, "writeBufferHighWaterMark");
+        if (writeBufferHighWaterMark < 0) {
+            throw new IllegalArgumentException(
+                    "writeBufferHighWaterMark must be >= 0");
+        }
         for (;;) {
             WriteBufferWaterMark waterMark = writeBufferWaterMark;
             if (writeBufferHighWaterMark < waterMark.low()) {
@@ -370,13 +387,18 @@ public class DefaultChannelConfig implements ChannelConfig {
     }
 
     @Override
+    @Deprecated
     public int getWriteBufferLowWaterMark() {
         return writeBufferWaterMark.low();
     }
 
     @Override
+    @Deprecated
     public ChannelConfig setWriteBufferLowWaterMark(int writeBufferLowWaterMark) {
-        checkPositiveOrZero(writeBufferLowWaterMark, "writeBufferLowWaterMark");
+        if (writeBufferLowWaterMark < 0) {
+            throw new IllegalArgumentException(
+                    "writeBufferLowWaterMark must be >= 0");
+        }
         for (;;) {
             WriteBufferWaterMark waterMark = writeBufferWaterMark;
             if (writeBufferLowWaterMark > waterMark.high()) {

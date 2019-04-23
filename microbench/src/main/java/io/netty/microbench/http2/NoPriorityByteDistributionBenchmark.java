@@ -31,6 +31,7 @@ import io.netty.handler.codec.http2.UniformStreamByteDistributor;
 import io.netty.handler.codec.http2.WeightedFairQueueByteDistributor;
 import io.netty.microbench.channel.EmbeddedChannelWriteReleaseHandlerContext;
 import io.netty.microbench.util.AbstractMicrobenchmark;
+
 import org.openjdk.jmh.annotations.AuxCounters;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Level;
@@ -79,8 +80,8 @@ public class NoPriorityByteDistributionBenchmark extends AbstractMicrobenchmark 
     @AuxCounters
     @State(Scope.Thread)
     public static class AdditionalCounters {
-        int minWriteSize = Integer.MAX_VALUE;
-        int maxWriteSize = Integer.MIN_VALUE;
+        int minWriteSize;
+        int maxWriteSize;
         long totalBytes;
         long numWrites;
         int invocations;
@@ -123,7 +124,7 @@ public class NoPriorityByteDistributionBenchmark extends AbstractMicrobenchmark 
         // Create the flow controller
         switch (algorithm) {
             case WFQ:
-                distributor = new WeightedFairQueueByteDistributor(connection, 0);
+                distributor = new WeightedFairQueueByteDistributor(connection);
                 break;
             case UNIFORM:
                 distributor = new UniformStreamByteDistributor(connection);
@@ -136,7 +137,8 @@ public class NoPriorityByteDistributionBenchmark extends AbstractMicrobenchmark 
             .frameListener(new Http2FrameAdapter())
             .connection(connection)
             .build();
-        ctx = new EmbeddedChannelWriteReleaseHandlerContext(PooledByteBufAllocator.DEFAULT, handler) {
+        ctx = new EmbeddedChannelWriteReleaseHandlerContext(
+                                            PooledByteBufAllocator.DEFAULT, handler) {
             @Override
             protected void handleException(Throwable t) {
                 handleUnexpectedException(t);
@@ -180,7 +182,7 @@ public class NoPriorityByteDistributionBenchmark extends AbstractMicrobenchmark 
 
     private void addData(Http2Stream stream, final int dataSize) {
         controller.addFlowControlled(stream, new Http2RemoteFlowController.FlowControlled() {
-            private int size = dataSize;
+            int size = dataSize;
 
             @Override
             public int size() {
@@ -255,12 +257,8 @@ public class NoPriorityByteDistributionBenchmark extends AbstractMicrobenchmark 
         }
 
         @Override
-        public void updateDependencyTree(int childStreamId, int parentStreamId, short weight, boolean exclusive) {
-            delegate.updateDependencyTree(childStreamId, parentStreamId, weight, exclusive);
-        }
-
-        @Override
-        public boolean distribute(int maxBytes, Writer writer) throws Http2Exception {
+        public boolean distribute(int maxBytes, Writer writer)
+                throws Http2Exception {
             return delegate.distribute(maxBytes, new CountingWriter(writer));
         }
 
@@ -279,9 +277,9 @@ public class NoPriorityByteDistributionBenchmark extends AbstractMicrobenchmark 
                     DataRefresher refresher = dataRefresher(stream);
                     refresher.add(numBytes);
 
-                    ++counters.numWrites;
+                    counters.numWrites++;
                     counters.totalBytes += numBytes;
-                    if (numBytes < counters.minWriteSize) {
+                    if (counters.minWriteSize == 0 || numBytes < counters.minWriteSize) {
                         counters.minWriteSize = numBytes;
                     }
                     if (numBytes > counters.maxWriteSize) {

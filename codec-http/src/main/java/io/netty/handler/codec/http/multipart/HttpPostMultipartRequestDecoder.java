@@ -22,7 +22,7 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.LastHttpContent;
-import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http.multipart.HttpPostBodyUtil.SeekAheadNoBackArrayException;
 import io.netty.handler.codec.http.multipart.HttpPostBodyUtil.SeekAheadOptimize;
 import io.netty.handler.codec.http.multipart.HttpPostBodyUtil.TransferEncodingMechanism;
 import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder.EndOfDataDecoderException;
@@ -42,7 +42,6 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import static io.netty.buffer.Unpooled.*;
-import static io.netty.util.internal.ObjectUtil.*;
 
 /**
  * This decoder will decode Body and can handle POST BODY.
@@ -94,7 +93,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
     private int bodyListHttpDataRank;
 
     /**
-     * If multipart, this is the boundary for the global multipart
+     * If multipart, this is the boundary for the flobal multipart
      */
     private String multipartDataBoundary;
 
@@ -173,9 +172,18 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      *             errors
      */
     public HttpPostMultipartRequestDecoder(HttpDataFactory factory, HttpRequest request, Charset charset) {
-        this.request = checkNotNull(request, "request");
-        this.charset = checkNotNull(charset, "charset");
-        this.factory = checkNotNull(factory, "factory");
+        if (factory == null) {
+            throw new NullPointerException("factory");
+        }
+        if (request == null) {
+            throw new NullPointerException("request");
+        }
+        if (charset == null) {
+            throw new NullPointerException("charset");
+        }
+        this.request = request;
+        this.charset = charset;
+        this.factory = factory;
         // Fill default values
 
         setMultipart(this.request.headers().get(HttpHeaderNames.CONTENT_TYPE));
@@ -230,7 +238,10 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      */
     @Override
     public void setDiscardThreshold(int discardThreshold) {
-        this.discardThreshold = checkPositiveOrZero(discardThreshold, "discardThreshold");
+        if (discardThreshold < 0) {
+          throw new IllegalArgumentException("discardThreshold must be >= 0");
+        }
+        this.discardThreshold = discardThreshold;
     }
 
     /**
@@ -512,7 +523,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                             .getValue()) : 0L;
                 } catch (IOException e) {
                     throw new ErrorDataDecoderException(e);
-                } catch (NumberFormatException ignored) {
+                } catch (NumberFormatException e) {
                     size = 0;
                 }
                 try {
@@ -535,8 +546,9 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                 }
             }
             // load data
-            if (!loadDataMultipart(undecodedChunk, multipartDataBoundary, currentAttribute)) {
-                // Delimiter is not found. Need more chunks.
+            try {
+                loadFieldMultipart(multipartDataBoundary);
+            } catch (NotEnoughDataDecoderException ignored) {
                 return null;
             }
             Attribute finalAttribute = currentAttribute;
@@ -577,16 +589,19 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      *
      * @throws NotEnoughDataDecoderException
      */
-    private static void skipControlCharacters(ByteBuf undecodedChunk) {
-        if (!undecodedChunk.hasArray()) {
+    void skipControlCharacters() {
+        SeekAheadOptimize sao;
+        try {
+            sao = new SeekAheadOptimize(undecodedChunk);
+        } catch (SeekAheadNoBackArrayException ignored) {
             try {
-                skipControlCharactersStandard(undecodedChunk);
+                skipControlCharactersStandard();
             } catch (IndexOutOfBoundsException e1) {
                 throw new NotEnoughDataDecoderException(e1);
             }
             return;
         }
-        SeekAheadOptimize sao = new SeekAheadOptimize(undecodedChunk);
+
         while (sao.pos < sao.limit) {
             char c = (char) (sao.bytes[sao.pos++] & 0xFF);
             if (!Character.isISOControl(c) && !Character.isWhitespace(c)) {
@@ -597,7 +612,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
         throw new NotEnoughDataDecoderException("Access out of bounds");
     }
 
-    private static void skipControlCharactersStandard(ByteBuf undecodedChunk) {
+    void skipControlCharactersStandard() {
         for (;;) {
             char c = (char) undecodedChunk.readUnsignedByte();
             if (!Character.isISOControl(c) && !Character.isWhitespace(c)) {
@@ -624,7 +639,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
         // --AaB03x or --AaB03x--
         int readerIndex = undecodedChunk.readerIndex();
         try {
-            skipControlCharacters(undecodedChunk);
+            skipControlCharacters();
         } catch (NotEnoughDataDecoderException ignored) {
             undecodedChunk.readerIndex(readerIndex);
             return null;
@@ -632,7 +647,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
         skipOneLine();
         String newline;
         try {
-            newline = readDelimiter(undecodedChunk, delimiter);
+            newline = readDelimiter(delimiter);
         } catch (NotEnoughDataDecoderException ignored) {
             undecodedChunk.readerIndex(readerIndex);
             return null;
@@ -671,8 +686,8 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
         while (!skipOneLine()) {
             String newline;
             try {
-                skipControlCharacters(undecodedChunk);
-                newline = readLine(undecodedChunk, charset);
+                skipControlCharacters();
+                newline = readLine();
             } catch (NotEnoughDataDecoderException ignored) {
                 undecodedChunk.readerIndex(readerIndex);
                 return null;
@@ -692,7 +707,18 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                         String[] values = contents[i].split("=", 2);
                         Attribute attribute;
                         try {
-                            attribute = getContentDispositionAttribute(values);
+                            String name = cleanString(values[0]);
+                            String value = values[1];
+
+                            // See http://www.w3.org/Protocols/rfc2616/rfc2616-sec19.html
+                            if (HttpHeaderValues.FILENAME.contentEquals(name)) {
+                                // filename value is quoted string so strip them
+                                value = value.substring(1, value.length() - 1);
+                            } else {
+                                // otherwise we need to clean the value
+                                value = cleanString(value);
+                            }
+                            attribute = factory.createAttribute(request, name, value);
                         } catch (NullPointerException e) {
                             throw new ErrorDataDecoderException(e);
                         } catch (IllegalArgumentException e) {
@@ -738,12 +764,12 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                     }
                 } else {
                     for (int i = 1; i < contents.length; i++) {
-                        final String charsetHeader = HttpHeaderValues.CHARSET.toString();
-                        if (contents[i].regionMatches(true, 0, charsetHeader, 0, charsetHeader.length())) {
+                        if (contents[i].toLowerCase().startsWith(HttpHeaderValues.CHARSET.toString())) {
                             String values = StringUtil.substringAfter(contents[i], '=');
                             Attribute attribute;
                             try {
-                                attribute = factory.createAttribute(request, charsetHeader, cleanString(values));
+                                attribute = factory.createAttribute(request, HttpHeaderValues.CHARSET.toString(),
+                                        cleanString(values));
                             } catch (NullPointerException e) {
                                 throw new ErrorDataDecoderException(e);
                             } catch (IllegalArgumentException e) {
@@ -793,38 +819,6 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
                 throw new ErrorDataDecoderException("Filename not found");
             }
         }
-    }
-
-    private static final String FILENAME_ENCODED = HttpHeaderValues.FILENAME.toString() + '*';
-
-    private Attribute getContentDispositionAttribute(String... values) {
-        String name = cleanString(values[0]);
-        String value = values[1];
-
-        // Filename can be token, quoted or encoded. See https://tools.ietf.org/html/rfc5987
-        if (HttpHeaderValues.FILENAME.contentEquals(name)) {
-            // Value is quoted or token. Strip if quoted:
-            int last = value.length() - 1;
-            if (last > 0 &&
-              value.charAt(0) == HttpConstants.DOUBLE_QUOTE &&
-              value.charAt(last) == HttpConstants.DOUBLE_QUOTE) {
-                value = value.substring(1, last);
-            }
-        } else if (FILENAME_ENCODED.equals(name)) {
-            try {
-                name = HttpHeaderValues.FILENAME.toString();
-                String[] split = value.split("'", 3);
-                value = QueryStringDecoder.decodeComponent(split[2], Charset.forName(split[0]));
-            } catch (ArrayIndexOutOfBoundsException e) {
-                 throw new ErrorDataDecoderException(e);
-            } catch (UnsupportedCharsetException e) {
-                throw new ErrorDataDecoderException(e);
-            }
-        } else {
-            // otherwise we need to clean the value
-            value = cleanString(value);
-        }
-        return factory.createAttribute(request, name, value);
     }
 
     /**
@@ -904,8 +898,12 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             }
         }
         // load data as much as possible
-        if (!loadDataMultipart(undecodedChunk, delimiter, currentFileUpload)) {
-            // Delimiter is not found. Need more chunks.
+        try {
+            readFileUploadByteMultipart(delimiter);
+        } catch (NotEnoughDataDecoderException e) {
+            // do not change the buffer position
+            // since some can be already saved into FileUpload
+            // So do not change the currentStatus
             return null;
         }
         if (currentFileUpload.isCompleted()) {
@@ -985,10 +983,10 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      *
      * @return the String from one line
      * @throws NotEnoughDataDecoderException
-     *             Need more chunks and reset the {@code readerIndex} to the previous
+     *             Need more chunks and reset the readerInder to the previous
      *             value
      */
-    private static String readLineStandard(ByteBuf undecodedChunk, Charset charset) {
+    private String readLineStandard() {
         int readerIndex = undecodedChunk.readerIndex();
         try {
             ByteBuf line = buffer(64);
@@ -1025,14 +1023,16 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      *
      * @return the String from one line
      * @throws NotEnoughDataDecoderException
-     *             Need more chunks and reset the {@code readerIndex} to the previous
+     *             Need more chunks and reset the readerInder to the previous
      *             value
      */
-    private static String readLine(ByteBuf undecodedChunk, Charset charset) {
-        if (!undecodedChunk.hasArray()) {
-            return readLineStandard(undecodedChunk, charset);
+    private String readLine() {
+        SeekAheadOptimize sao;
+        try {
+            sao = new SeekAheadOptimize(undecodedChunk);
+        } catch (SeekAheadNoBackArrayException ignored) {
+            return readLineStandard();
         }
-        SeekAheadOptimize sao = new SeekAheadOptimize(undecodedChunk);
         int readerIndex = undecodedChunk.readerIndex();
         try {
             ByteBuf line = buffer(64);
@@ -1080,10 +1080,10 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      * @return the String from one line as the delimiter searched (opening or
      *         closing)
      * @throws NotEnoughDataDecoderException
-     *             Need more chunks and reset the {@code readerIndex} to the previous
+     *             Need more chunks and reset the readerInder to the previous
      *             value
      */
-    private static String readDelimiterStandard(ByteBuf undecodedChunk, String delimiter) {
+    private String readDelimiterStandard(String delimiter) {
         int readerIndex = undecodedChunk.readerIndex();
         try {
             StringBuilder sb = new StringBuilder(64);
@@ -1177,11 +1177,13 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      *             Need more chunks and reset the readerInder to the previous
      *             value
      */
-    private static String readDelimiter(ByteBuf undecodedChunk, String delimiter) {
-        if (!undecodedChunk.hasArray()) {
-            return readDelimiterStandard(undecodedChunk, delimiter);
+    private String readDelimiter(String delimiter) {
+        SeekAheadOptimize sao;
+        try {
+            sao = new SeekAheadOptimize(undecodedChunk);
+        } catch (SeekAheadNoBackArrayException ignored) {
+            return readDelimiterStandard(delimiter);
         }
-        SeekAheadOptimize sao = new SeekAheadOptimize(undecodedChunk);
         int readerIndex = undecodedChunk.readerIndex();
         int delimiterPos = 0;
         int len = delimiter.length();
@@ -1288,96 +1290,447 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
     }
 
     /**
-     * Load the field value or file data from a Multipart request
+     * Read a FileUpload data as Byte (Binary) and add the bytes directly to the
+     * FileUpload. If the delimiter is found, the FileUpload is completed.
      *
-     * @return {@code true} if the last chunk is loaded (boundary delimiter found), {@code false} if need more chunks
+     * @throws NotEnoughDataDecoderException
+     *             Need more chunks but do not reset the readerInder since some
+     *             values will be already added to the FileOutput
      * @throws ErrorDataDecoderException
+     *             write IO error occurs with the FileUpload
      */
-    private static boolean loadDataMultipartStandard(ByteBuf undecodedChunk, String delimiter, HttpData httpData) {
-        final int startReaderIndex = undecodedChunk.readerIndex();
-        final int delimeterLength = delimiter.length();
+    private void readFileUploadByteMultipartStandard(String delimiter) {
+        int readerIndex = undecodedChunk.readerIndex();
+        // found the decoder limit
+        boolean newLine = true;
         int index = 0;
-        int lastPosition = startReaderIndex;
-        byte prevByte = HttpConstants.LF;
-        boolean delimiterFound = false;
+        int lastPosition = undecodedChunk.readerIndex();
+        boolean found = false;
         while (undecodedChunk.isReadable()) {
-            final byte nextByte = undecodedChunk.readByte();
-            // Check the delimiter
-            if (prevByte == HttpConstants.LF && nextByte == delimiter.codePointAt(index)) {
-                index++;
-                if (delimeterLength == index) {
-                    delimiterFound = true;
-                    break;
+            byte nextByte = undecodedChunk.readByte();
+            if (newLine) {
+                // Check the delimiter
+                if (nextByte == delimiter.codePointAt(index)) {
+                    index++;
+                    if (delimiter.length() == index) {
+                        found = true;
+                        break;
+                    }
+                    continue;
+                } else {
+                    newLine = false;
+                    index = 0;
+                    // continue until end of line
+                    if (nextByte == HttpConstants.CR) {
+                        if (undecodedChunk.isReadable()) {
+                            nextByte = undecodedChunk.readByte();
+                            if (nextByte == HttpConstants.LF) {
+                                newLine = true;
+                                index = 0;
+                                lastPosition = undecodedChunk.readerIndex() - 2;
+                            } else {
+                                // save last valid position
+                                lastPosition = undecodedChunk.readerIndex() - 1;
+
+                                // Unread next byte.
+                                undecodedChunk.readerIndex(lastPosition);
+                            }
+                        }
+                    } else if (nextByte == HttpConstants.LF) {
+                        newLine = true;
+                        index = 0;
+                        lastPosition = undecodedChunk.readerIndex() - 1;
+                    } else {
+                        // save last valid position
+                        lastPosition = undecodedChunk.readerIndex();
+                    }
                 }
-                continue;
+            } else {
+                // continue until end of line
+                if (nextByte == HttpConstants.CR) {
+                    if (undecodedChunk.isReadable()) {
+                        nextByte = undecodedChunk.readByte();
+                        if (nextByte == HttpConstants.LF) {
+                            newLine = true;
+                            index = 0;
+                            lastPosition = undecodedChunk.readerIndex() - 2;
+                        } else {
+                            // save last valid position
+                            lastPosition = undecodedChunk.readerIndex() - 1;
+
+                            // Unread next byte.
+                            undecodedChunk.readerIndex(lastPosition);
+                        }
+                    }
+                } else if (nextByte == HttpConstants.LF) {
+                    newLine = true;
+                    index = 0;
+                    lastPosition = undecodedChunk.readerIndex() - 1;
+                } else {
+                    // save last valid position
+                    lastPosition = undecodedChunk.readerIndex();
+                }
             }
-            lastPosition = undecodedChunk.readerIndex();
-            if (nextByte == HttpConstants.LF) {
-                index = 0;
-                lastPosition -= (prevByte == HttpConstants.CR)? 2 : 1;
+        }
+        ByteBuf buffer = undecodedChunk.copy(readerIndex, lastPosition - readerIndex);
+        if (found) {
+            // found so lastPosition is correct and final
+            try {
+                currentFileUpload.addContent(buffer, true);
+                // just before the CRLF and delimiter
+                undecodedChunk.readerIndex(lastPosition);
+            } catch (IOException e) {
+                throw new ErrorDataDecoderException(e);
             }
-            prevByte = nextByte;
+        } else {
+            // possibly the delimiter is partially found but still the last
+            // position is OK
+            try {
+                currentFileUpload.addContent(buffer, false);
+                // last valid char (not CR, not LF, not beginning of delimiter)
+                undecodedChunk.readerIndex(lastPosition);
+                throw new NotEnoughDataDecoderException();
+            } catch (IOException e) {
+                throw new ErrorDataDecoderException(e);
+            }
         }
-        if (prevByte == HttpConstants.CR) {
-            lastPosition--;
-        }
-        ByteBuf content = undecodedChunk.copy(startReaderIndex, lastPosition - startReaderIndex);
+    }
+
+    /**
+     * Read a FileUpload data as Byte (Binary) and add the bytes directly to the
+     * FileUpload. If the delimiter is found, the FileUpload is completed.
+     *
+     * @throws NotEnoughDataDecoderException
+     *             Need more chunks but do not reset the readerInder since some
+     *             values will be already added to the FileOutput
+     * @throws ErrorDataDecoderException
+     *             write IO error occurs with the FileUpload
+     */
+    private void readFileUploadByteMultipart(String delimiter) {
+        SeekAheadOptimize sao;
         try {
-            httpData.addContent(content, delimiterFound);
-        } catch (IOException e) {
-            throw new ErrorDataDecoderException(e);
+            sao = new SeekAheadOptimize(undecodedChunk);
+        } catch (SeekAheadNoBackArrayException ignored) {
+            readFileUploadByteMultipartStandard(delimiter);
+            return;
         }
-        undecodedChunk.readerIndex(lastPosition);
-        return delimiterFound;
+        int readerIndex = undecodedChunk.readerIndex();
+        // found the decoder limit
+        boolean newLine = true;
+        int index = 0;
+        int lastrealpos = sao.pos;
+        int lastPosition;
+        boolean found = false;
+
+        while (sao.pos < sao.limit) {
+            byte nextByte = sao.bytes[sao.pos++];
+            if (newLine) {
+                // Check the delimiter
+                if (nextByte == delimiter.codePointAt(index)) {
+                    index++;
+                    if (delimiter.length() == index) {
+                        found = true;
+                        break;
+                    }
+                    continue;
+                } else {
+                    newLine = false;
+                    index = 0;
+                    // continue until end of line
+                    if (nextByte == HttpConstants.CR) {
+                        if (sao.pos < sao.limit) {
+                            nextByte = sao.bytes[sao.pos++];
+                            if (nextByte == HttpConstants.LF) {
+                                newLine = true;
+                                index = 0;
+                                lastrealpos = sao.pos - 2;
+                            } else {
+                                // unread next byte
+                                sao.pos--;
+
+                                // save last valid position
+                                lastrealpos = sao.pos;
+                            }
+                        }
+                    } else if (nextByte == HttpConstants.LF) {
+                        newLine = true;
+                        index = 0;
+                        lastrealpos = sao.pos - 1;
+                    } else {
+                        // save last valid position
+                        lastrealpos = sao.pos;
+                    }
+                }
+            } else {
+                // continue until end of line
+                if (nextByte == HttpConstants.CR) {
+                    if (sao.pos < sao.limit) {
+                        nextByte = sao.bytes[sao.pos++];
+                        if (nextByte == HttpConstants.LF) {
+                            newLine = true;
+                            index = 0;
+                            lastrealpos = sao.pos - 2;
+                        } else {
+                            // unread next byte
+                            sao.pos--;
+
+                            // save last valid position
+                            lastrealpos = sao.pos;
+                        }
+                    }
+                } else if (nextByte == HttpConstants.LF) {
+                    newLine = true;
+                    index = 0;
+                    lastrealpos = sao.pos - 1;
+                } else {
+                    // save last valid position
+                    lastrealpos = sao.pos;
+                }
+            }
+        }
+        lastPosition = sao.getReadPosition(lastrealpos);
+        ByteBuf buffer = undecodedChunk.copy(readerIndex, lastPosition - readerIndex);
+        if (found) {
+            // found so lastPosition is correct and final
+            try {
+                currentFileUpload.addContent(buffer, true);
+                // just before the CRLF and delimiter
+                undecodedChunk.readerIndex(lastPosition);
+            } catch (IOException e) {
+                throw new ErrorDataDecoderException(e);
+            }
+        } else {
+            // possibly the delimiter is partially found but still the last
+            // position is OK
+            try {
+                currentFileUpload.addContent(buffer, false);
+                // last valid char (not CR, not LF, not beginning of delimiter)
+                undecodedChunk.readerIndex(lastPosition);
+                throw new NotEnoughDataDecoderException();
+            } catch (IOException e) {
+                throw new ErrorDataDecoderException(e);
+            }
+        }
     }
 
     /**
      * Load the field value from a Multipart request
      *
-     * @return {@code true} if the last chunk is loaded (boundary delimiter found), {@code false} if need more chunks
+     * @throws NotEnoughDataDecoderException
+     *             Need more chunks
      * @throws ErrorDataDecoderException
      */
-    private static boolean loadDataMultipart(ByteBuf undecodedChunk, String delimiter, HttpData httpData) {
-        if (!undecodedChunk.hasArray()) {
-            return loadDataMultipartStandard(undecodedChunk, delimiter, httpData);
-        }
-        final SeekAheadOptimize sao = new SeekAheadOptimize(undecodedChunk);
-        final int startReaderIndex = undecodedChunk.readerIndex();
-        final int delimeterLength = delimiter.length();
-        int index = 0;
-        int lastRealPos = sao.pos;
-        byte prevByte = HttpConstants.LF;
-        boolean delimiterFound = false;
-        while (sao.pos < sao.limit) {
-            final byte nextByte = sao.bytes[sao.pos++];
-            // Check the delimiter
-            if (prevByte == HttpConstants.LF && nextByte == delimiter.codePointAt(index)) {
-                index++;
-                if (delimeterLength == index) {
-                    delimiterFound = true;
-                    break;
-                }
-                continue;
-            }
-            lastRealPos = sao.pos;
-            if (nextByte == HttpConstants.LF) {
-                index = 0;
-                lastRealPos -= (prevByte == HttpConstants.CR)? 2 : 1;
-            }
-            prevByte = nextByte;
-        }
-        if (prevByte == HttpConstants.CR) {
-            lastRealPos--;
-        }
-        final int lastPosition = sao.getReadPosition(lastRealPos);
-        final ByteBuf content = undecodedChunk.copy(startReaderIndex, lastPosition - startReaderIndex);
+    private void loadFieldMultipartStandard(String delimiter) {
+        int readerIndex = undecodedChunk.readerIndex();
         try {
-            httpData.addContent(content, delimiterFound);
-        } catch (IOException e) {
-            throw new ErrorDataDecoderException(e);
+            // found the decoder limit
+            boolean newLine = true;
+            int index = 0;
+            int lastPosition = undecodedChunk.readerIndex();
+            boolean found = false;
+            while (undecodedChunk.isReadable()) {
+                byte nextByte = undecodedChunk.readByte();
+                if (newLine) {
+                    // Check the delimiter
+                    if (nextByte == delimiter.codePointAt(index)) {
+                        index++;
+                        if (delimiter.length() == index) {
+                            found = true;
+                            break;
+                        }
+                        continue;
+                    } else {
+                        newLine = false;
+                        index = 0;
+                        // continue until end of line
+                        if (nextByte == HttpConstants.CR) {
+                            if (undecodedChunk.isReadable()) {
+                                nextByte = undecodedChunk.readByte();
+                                if (nextByte == HttpConstants.LF) {
+                                    newLine = true;
+                                    index = 0;
+                                    lastPosition = undecodedChunk.readerIndex() - 2;
+                                } else {
+                                    // Unread second nextByte
+                                    lastPosition = undecodedChunk.readerIndex() - 1;
+                                    undecodedChunk.readerIndex(lastPosition);
+                                }
+                            } else {
+                                lastPosition = undecodedChunk.readerIndex() - 1;
+                            }
+                        } else if (nextByte == HttpConstants.LF) {
+                            newLine = true;
+                            index = 0;
+                            lastPosition = undecodedChunk.readerIndex() - 1;
+                        } else {
+                            lastPosition = undecodedChunk.readerIndex();
+                        }
+                    }
+                } else {
+                    // continue until end of line
+                    if (nextByte == HttpConstants.CR) {
+                        if (undecodedChunk.isReadable()) {
+                            nextByte = undecodedChunk.readByte();
+                            if (nextByte == HttpConstants.LF) {
+                                newLine = true;
+                                index = 0;
+                                lastPosition = undecodedChunk.readerIndex() - 2;
+                            } else {
+                                // Unread second nextByte
+                                lastPosition = undecodedChunk.readerIndex() - 1;
+                                undecodedChunk.readerIndex(lastPosition);
+                            }
+                        } else {
+                            lastPosition = undecodedChunk.readerIndex() - 1;
+                        }
+                    } else if (nextByte == HttpConstants.LF) {
+                        newLine = true;
+                        index = 0;
+                        lastPosition = undecodedChunk.readerIndex() - 1;
+                    } else {
+                        lastPosition = undecodedChunk.readerIndex();
+                    }
+                }
+            }
+            if (found) {
+                // found so lastPosition is correct
+                // but position is just after the delimiter (either close
+                // delimiter or simple one)
+                // so go back of delimiter size
+                try {
+                    currentAttribute.addContent(
+                            undecodedChunk.copy(readerIndex, lastPosition - readerIndex), true);
+                } catch (IOException e) {
+                    throw new ErrorDataDecoderException(e);
+                }
+                undecodedChunk.readerIndex(lastPosition);
+            } else {
+                try {
+                    currentAttribute.addContent(
+                            undecodedChunk.copy(readerIndex, lastPosition - readerIndex), false);
+                } catch (IOException e) {
+                    throw new ErrorDataDecoderException(e);
+                }
+                undecodedChunk.readerIndex(lastPosition);
+                throw new NotEnoughDataDecoderException();
+            }
+        } catch (IndexOutOfBoundsException e) {
+            undecodedChunk.readerIndex(readerIndex);
+            throw new NotEnoughDataDecoderException(e);
         }
-        undecodedChunk.readerIndex(lastPosition);
-        return delimiterFound;
+    }
+
+    /**
+     * Load the field value from a Multipart request
+     *
+     * @throws NotEnoughDataDecoderException
+     *             Need more chunks
+     * @throws ErrorDataDecoderException
+     */
+    private void loadFieldMultipart(String delimiter) {
+        SeekAheadOptimize sao;
+        try {
+            sao = new SeekAheadOptimize(undecodedChunk);
+        } catch (SeekAheadNoBackArrayException ignored) {
+            loadFieldMultipartStandard(delimiter);
+            return;
+        }
+        int readerIndex = undecodedChunk.readerIndex();
+        try {
+            // found the decoder limit
+            boolean newLine = true;
+            int index = 0;
+            int lastPosition;
+            int lastrealpos = sao.pos;
+            boolean found = false;
+
+            while (sao.pos < sao.limit) {
+                byte nextByte = sao.bytes[sao.pos++];
+                if (newLine) {
+                    // Check the delimiter
+                    if (nextByte == delimiter.codePointAt(index)) {
+                        index++;
+                        if (delimiter.length() == index) {
+                            found = true;
+                            break;
+                        }
+                        continue;
+                    } else {
+                        newLine = false;
+                        index = 0;
+                        // continue until end of line
+                        if (nextByte == HttpConstants.CR) {
+                            if (sao.pos < sao.limit) {
+                                nextByte = sao.bytes[sao.pos++];
+                                if (nextByte == HttpConstants.LF) {
+                                    newLine = true;
+                                    index = 0;
+                                    lastrealpos = sao.pos - 2;
+                                } else {
+                                    // Unread last nextByte
+                                    sao.pos--;
+                                    lastrealpos = sao.pos;
+                                }
+                            }
+                        } else if (nextByte == HttpConstants.LF) {
+                            newLine = true;
+                            index = 0;
+                            lastrealpos = sao.pos - 1;
+                        } else {
+                            lastrealpos = sao.pos;
+                        }
+                    }
+                } else {
+                    // continue until end of line
+                    if (nextByte == HttpConstants.CR) {
+                        if (sao.pos < sao.limit) {
+                            nextByte = sao.bytes[sao.pos++];
+                            if (nextByte == HttpConstants.LF) {
+                                newLine = true;
+                                index = 0;
+                                lastrealpos = sao.pos - 2;
+                            } else {
+                                // Unread last nextByte
+                                sao.pos--;
+                                lastrealpos = sao.pos;
+                            }
+                        }
+                    } else if (nextByte == HttpConstants.LF) {
+                        newLine = true;
+                        index = 0;
+                        lastrealpos = sao.pos - 1;
+                    } else {
+                        lastrealpos = sao.pos;
+                    }
+                }
+            }
+            lastPosition = sao.getReadPosition(lastrealpos);
+            if (found) {
+                // found so lastPosition is correct
+                // but position is just after the delimiter (either close
+                // delimiter or simple one)
+                // so go back of delimiter size
+                try {
+                    currentAttribute.addContent(
+                            undecodedChunk.copy(readerIndex, lastPosition - readerIndex), true);
+                } catch (IOException e) {
+                    throw new ErrorDataDecoderException(e);
+                }
+                undecodedChunk.readerIndex(lastPosition);
+            } else {
+                try {
+                    currentAttribute.addContent(
+                            undecodedChunk.copy(readerIndex, lastPosition - readerIndex), false);
+                } catch (IOException e) {
+                    throw new ErrorDataDecoderException(e);
+                }
+                undecodedChunk.readerIndex(lastPosition);
+                throw new NotEnoughDataDecoderException();
+            }
+        } catch (IndexOutOfBoundsException e) {
+            undecodedChunk.readerIndex(readerIndex);
+            throw new NotEnoughDataDecoderException(e);
+        }
     }
 
     /**
@@ -1385,25 +1738,25 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
      *
      * @return the cleaned String
      */
+    @SuppressWarnings("IfStatementWithIdenticalBranches")
     private static String cleanString(String field) {
-        int size = field.length();
-        StringBuilder sb = new StringBuilder(size);
-        for (int i = 0; i < size; i++) {
+        StringBuilder sb = new StringBuilder(field.length());
+        for (int i = 0; i < field.length(); i++) {
             char nextChar = field.charAt(i);
-            switch (nextChar) {
-            case HttpConstants.COLON:
-            case HttpConstants.COMMA:
-            case HttpConstants.EQUALS:
-            case HttpConstants.SEMICOLON:
-            case HttpConstants.HT:
+            if (nextChar == HttpConstants.COLON) {
                 sb.append(HttpConstants.SP_CHAR);
-                break;
-            case HttpConstants.DOUBLE_QUOTE:
+            } else if (nextChar == HttpConstants.COMMA) {
+                sb.append(HttpConstants.SP_CHAR);
+            } else if (nextChar == HttpConstants.EQUALS) {
+                sb.append(HttpConstants.SP_CHAR);
+            } else if (nextChar == HttpConstants.SEMICOLON) {
+                sb.append(HttpConstants.SP_CHAR);
+            } else if (nextChar == HttpConstants.HT) {
+                sb.append(HttpConstants.SP_CHAR);
+            } else if (nextChar == HttpConstants.DOUBLE_QUOTE) {
                 // nothing added, just removes it
-                break;
-            default:
+            } else {
                 sb.append(nextChar);
-                break;
             }
         }
         return sb.toString().trim();
@@ -1467,7 +1820,7 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
         valueStart = HttpPostBodyUtil.findNonWhitespace(sb, colonEnd);
         valueEnd = HttpPostBodyUtil.findEndOfString(sb);
         headers.add(sb.substring(nameStart, nameEnd));
-        String svalue = (valueStart >= valueEnd) ? StringUtil.EMPTY_STRING : sb.substring(valueStart, valueEnd);
+        String svalue = sb.substring(valueStart, valueEnd);
         String[] values;
         if (svalue.indexOf(';') >= 0) {
             values = splitMultipartHeaderValues(svalue);
@@ -1515,6 +1868,6 @@ public class HttpPostMultipartRequestDecoder implements InterfaceHttpPostRequest
             }
         }
         values.add(svalue.substring(start));
-        return values.toArray(new String[0]);
+        return values.toArray(new String[values.size()]);
     }
 }

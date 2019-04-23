@@ -17,14 +17,13 @@ package io.netty.handler.timeout;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
-import io.netty.channel.Channel.Unsafe;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOutboundBuffer;
 import io.netty.channel.ChannelPromise;
+import io.netty.util.concurrent.EventExecutor;
 
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -102,34 +101,28 @@ public class IdleStateHandler extends ChannelDuplexHandler {
     private final ChannelFutureListener writeListener = new ChannelFutureListener() {
         @Override
         public void operationComplete(ChannelFuture future) throws Exception {
-            lastWriteTime = ticksInNanos();
+            lastWriteTime = System.nanoTime();
             firstWriterIdleEvent = firstAllIdleEvent = true;
         }
     };
 
-    private final boolean observeOutput;
     private final long readerIdleTimeNanos;
     private final long writerIdleTimeNanos;
     private final long allIdleTimeNanos;
 
-    private ScheduledFuture<?> readerIdleTimeout;
-    private long lastReadTime;
+    volatile ScheduledFuture<?> readerIdleTimeout;
+    volatile long lastReadTime;
     private boolean firstReaderIdleEvent = true;
 
-    private ScheduledFuture<?> writerIdleTimeout;
-    private long lastWriteTime;
+    volatile ScheduledFuture<?> writerIdleTimeout;
+    volatile long lastWriteTime;
     private boolean firstWriterIdleEvent = true;
 
-    private ScheduledFuture<?> allIdleTimeout;
+    volatile ScheduledFuture<?> allIdleTimeout;
     private boolean firstAllIdleEvent = true;
 
-    private byte state; // 0 - none, 1 - initialized, 2 - destroyed
-    private boolean reading;
-
-    private long lastChangeCheckTimeStamp;
-    private int lastMessageHashCode;
-    private long lastPendingWriteBytes;
-    private long lastFlushProgress;
+    private volatile int state; // 0 - none, 1 - initialized, 2 - destroyed
+    private volatile boolean reading;
 
     /**
      * Creates a new instance firing {@link IdleStateEvent}s.
@@ -157,20 +150,8 @@ public class IdleStateHandler extends ChannelDuplexHandler {
     }
 
     /**
-     * @see #IdleStateHandler(boolean, long, long, long, TimeUnit)
-     */
-    public IdleStateHandler(
-            long readerIdleTime, long writerIdleTime, long allIdleTime,
-            TimeUnit unit) {
-        this(false, readerIdleTime, writerIdleTime, allIdleTime, unit);
-    }
-
-    /**
      * Creates a new instance firing {@link IdleStateEvent}s.
      *
-     * @param observeOutput
-     *        whether or not the consumption of {@code bytes} should be taken into
-     *        consideration when assessing write idleness. The default is {@code false}.
      * @param readerIdleTime
      *        an {@link IdleStateEvent} whose state is {@link IdleState#READER_IDLE}
      *        will be triggered when no read was performed for the specified
@@ -187,14 +168,12 @@ public class IdleStateHandler extends ChannelDuplexHandler {
      *        the {@link TimeUnit} of {@code readerIdleTime},
      *        {@code writeIdleTime}, and {@code allIdleTime}
      */
-    public IdleStateHandler(boolean observeOutput,
+    public IdleStateHandler(
             long readerIdleTime, long writerIdleTime, long allIdleTime,
             TimeUnit unit) {
         if (unit == null) {
             throw new NullPointerException("unit");
         }
-
-        this.observeOutput = observeOutput;
 
         if (readerIdleTime <= 0) {
             readerIdleTimeNanos = 0;
@@ -240,7 +219,7 @@ public class IdleStateHandler extends ChannelDuplexHandler {
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
         if (ctx.channel().isActive() && ctx.channel().isRegistered()) {
-            // channelActive() event has been fired already, which means this.channelActive() will
+            // channelActvie() event has been fired already, which means this.channelActive() will
             // not be invoked. We have to initialize here instead.
             initialize(ctx);
         } else {
@@ -289,8 +268,8 @@ public class IdleStateHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-        if ((readerIdleTimeNanos > 0 || allIdleTimeNanos > 0) && reading) {
-            lastReadTime = ticksInNanos();
+        if (readerIdleTimeNanos > 0 || allIdleTimeNanos > 0) {
+            lastReadTime = System.nanoTime();
             reading = false;
         }
         ctx.fireChannelReadComplete();
@@ -300,7 +279,9 @@ public class IdleStateHandler extends ChannelDuplexHandler {
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         // Allow writing with void promise if handler is only configured for read timeout events.
         if (writerIdleTimeNanos > 0 || allIdleTimeNanos > 0) {
-            ctx.write(msg, promise.unvoid()).addListener(writeListener);
+            ChannelPromise unvoid = promise.unvoid();
+            unvoid.addListener(writeListener);
+            ctx.write(msg, unvoid);
         } else {
             ctx.write(msg, promise);
         }
@@ -316,35 +297,25 @@ public class IdleStateHandler extends ChannelDuplexHandler {
         }
 
         state = 1;
-        initOutputChanged(ctx);
 
-        lastReadTime = lastWriteTime = ticksInNanos();
+        EventExecutor loop = ctx.executor();
+
+        lastReadTime = lastWriteTime = System.nanoTime();
         if (readerIdleTimeNanos > 0) {
-            readerIdleTimeout = schedule(ctx, new ReaderIdleTimeoutTask(ctx),
+            readerIdleTimeout = loop.schedule(
+                    new ReaderIdleTimeoutTask(ctx),
                     readerIdleTimeNanos, TimeUnit.NANOSECONDS);
         }
         if (writerIdleTimeNanos > 0) {
-            writerIdleTimeout = schedule(ctx, new WriterIdleTimeoutTask(ctx),
+            writerIdleTimeout = loop.schedule(
+                    new WriterIdleTimeoutTask(ctx),
                     writerIdleTimeNanos, TimeUnit.NANOSECONDS);
         }
         if (allIdleTimeNanos > 0) {
-            allIdleTimeout = schedule(ctx, new AllIdleTimeoutTask(ctx),
+            allIdleTimeout = loop.schedule(
+                    new AllIdleTimeoutTask(ctx),
                     allIdleTimeNanos, TimeUnit.NANOSECONDS);
         }
-    }
-
-    /**
-     * This method is visible for testing!
-     */
-    long ticksInNanos() {
-        return System.nanoTime();
-    }
-
-    /**
-     * This method is visible for testing!
-     */
-    ScheduledFuture<?> schedule(ChannelHandlerContext ctx, Runnable task, long delay, TimeUnit unit) {
-        return ctx.executor().schedule(task, delay, unit);
     }
 
     private void destroy() {
@@ -384,87 +355,15 @@ public class IdleStateHandler extends ChannelDuplexHandler {
             case WRITER_IDLE:
                 return first ? IdleStateEvent.FIRST_WRITER_IDLE_STATE_EVENT : IdleStateEvent.WRITER_IDLE_STATE_EVENT;
             default:
-                throw new IllegalArgumentException("Unhandled: state=" + state + ", first=" + first);
+                throw new Error();
         }
     }
 
-    /**
-     * @see #hasOutputChanged(ChannelHandlerContext, boolean)
-     */
-    private void initOutputChanged(ChannelHandlerContext ctx) {
-        if (observeOutput) {
-            Channel channel = ctx.channel();
-            Unsafe unsafe = channel.unsafe();
-            ChannelOutboundBuffer buf = unsafe.outboundBuffer();
-
-            if (buf != null) {
-                lastMessageHashCode = System.identityHashCode(buf.current());
-                lastPendingWriteBytes = buf.totalPendingWriteBytes();
-                lastFlushProgress = buf.currentProgress();
-            }
-        }
-    }
-
-    /**
-     * Returns {@code true} if and only if the {@link IdleStateHandler} was constructed
-     * with {@link #observeOutput} enabled and there has been an observed change in the
-     * {@link ChannelOutboundBuffer} between two consecutive calls of this method.
-     *
-     * https://github.com/netty/netty/issues/6150
-     */
-    private boolean hasOutputChanged(ChannelHandlerContext ctx, boolean first) {
-        if (observeOutput) {
-
-            // We can take this shortcut if the ChannelPromises that got passed into write()
-            // appear to complete. It indicates "change" on message level and we simply assume
-            // that there's change happening on byte level. If the user doesn't observe channel
-            // writability events then they'll eventually OOME and there's clearly a different
-            // problem and idleness is least of their concerns.
-            if (lastChangeCheckTimeStamp != lastWriteTime) {
-                lastChangeCheckTimeStamp = lastWriteTime;
-
-                // But this applies only if it's the non-first call.
-                if (!first) {
-                    return true;
-                }
-            }
-
-            Channel channel = ctx.channel();
-            Unsafe unsafe = channel.unsafe();
-            ChannelOutboundBuffer buf = unsafe.outboundBuffer();
-
-            if (buf != null) {
-                int messageHashCode = System.identityHashCode(buf.current());
-                long pendingWriteBytes = buf.totalPendingWriteBytes();
-
-                if (messageHashCode != lastMessageHashCode || pendingWriteBytes != lastPendingWriteBytes) {
-                    lastMessageHashCode = messageHashCode;
-                    lastPendingWriteBytes = pendingWriteBytes;
-
-                    if (!first) {
-                        return true;
-                    }
-                }
-
-                long flushProgress = buf.currentProgress();
-                if (flushProgress != lastFlushProgress) {
-                    lastFlushProgress = flushProgress;
-
-                    if (!first) {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private abstract static class AbstractIdleTask implements Runnable {
+    private final class ReaderIdleTimeoutTask implements Runnable {
 
         private final ChannelHandlerContext ctx;
 
-        AbstractIdleTask(ChannelHandlerContext ctx) {
+        ReaderIdleTimeoutTask(ChannelHandlerContext ctx) {
             this.ctx = ctx;
         }
 
@@ -474,107 +373,98 @@ public class IdleStateHandler extends ChannelDuplexHandler {
                 return;
             }
 
-            run(ctx);
-        }
-
-        protected abstract void run(ChannelHandlerContext ctx);
-    }
-
-    private final class ReaderIdleTimeoutTask extends AbstractIdleTask {
-
-        ReaderIdleTimeoutTask(ChannelHandlerContext ctx) {
-            super(ctx);
-        }
-
-        @Override
-        protected void run(ChannelHandlerContext ctx) {
             long nextDelay = readerIdleTimeNanos;
             if (!reading) {
-                nextDelay -= ticksInNanos() - lastReadTime;
+                nextDelay -= System.nanoTime() - lastReadTime;
             }
 
             if (nextDelay <= 0) {
                 // Reader is idle - set a new timeout and notify the callback.
-                readerIdleTimeout = schedule(ctx, this, readerIdleTimeNanos, TimeUnit.NANOSECONDS);
-
-                boolean first = firstReaderIdleEvent;
-                firstReaderIdleEvent = false;
-
+                readerIdleTimeout =
+                    ctx.executor().schedule(this, readerIdleTimeNanos, TimeUnit.NANOSECONDS);
                 try {
-                    IdleStateEvent event = newIdleStateEvent(IdleState.READER_IDLE, first);
+                    IdleStateEvent event = newIdleStateEvent(IdleState.READER_IDLE, firstReaderIdleEvent);
+                    if (firstReaderIdleEvent) {
+                        firstReaderIdleEvent = false;
+                    }
+
                     channelIdle(ctx, event);
                 } catch (Throwable t) {
                     ctx.fireExceptionCaught(t);
                 }
             } else {
                 // Read occurred before the timeout - set a new timeout with shorter delay.
-                readerIdleTimeout = schedule(ctx, this, nextDelay, TimeUnit.NANOSECONDS);
+                readerIdleTimeout = ctx.executor().schedule(this, nextDelay, TimeUnit.NANOSECONDS);
             }
         }
     }
 
-    private final class WriterIdleTimeoutTask extends AbstractIdleTask {
+    private final class WriterIdleTimeoutTask implements Runnable {
+
+        private final ChannelHandlerContext ctx;
 
         WriterIdleTimeoutTask(ChannelHandlerContext ctx) {
-            super(ctx);
+            this.ctx = ctx;
         }
 
         @Override
-        protected void run(ChannelHandlerContext ctx) {
+        public void run() {
+            if (!ctx.channel().isOpen()) {
+                return;
+            }
 
             long lastWriteTime = IdleStateHandler.this.lastWriteTime;
-            long nextDelay = writerIdleTimeNanos - (ticksInNanos() - lastWriteTime);
+            long nextDelay = writerIdleTimeNanos - (System.nanoTime() - lastWriteTime);
             if (nextDelay <= 0) {
                 // Writer is idle - set a new timeout and notify the callback.
-                writerIdleTimeout = schedule(ctx, this, writerIdleTimeNanos, TimeUnit.NANOSECONDS);
-
-                boolean first = firstWriterIdleEvent;
-                firstWriterIdleEvent = false;
-
+                writerIdleTimeout = ctx.executor().schedule(
+                        this, writerIdleTimeNanos, TimeUnit.NANOSECONDS);
                 try {
-                    if (hasOutputChanged(ctx, first)) {
-                        return;
+                    IdleStateEvent event = newIdleStateEvent(IdleState.WRITER_IDLE, firstWriterIdleEvent);
+                    if (firstWriterIdleEvent) {
+                        firstWriterIdleEvent = false;
                     }
 
-                    IdleStateEvent event = newIdleStateEvent(IdleState.WRITER_IDLE, first);
                     channelIdle(ctx, event);
                 } catch (Throwable t) {
                     ctx.fireExceptionCaught(t);
                 }
             } else {
                 // Write occurred before the timeout - set a new timeout with shorter delay.
-                writerIdleTimeout = schedule(ctx, this, nextDelay, TimeUnit.NANOSECONDS);
+                writerIdleTimeout = ctx.executor().schedule(this, nextDelay, TimeUnit.NANOSECONDS);
             }
         }
     }
 
-    private final class AllIdleTimeoutTask extends AbstractIdleTask {
+    private final class AllIdleTimeoutTask implements Runnable {
+
+        private final ChannelHandlerContext ctx;
 
         AllIdleTimeoutTask(ChannelHandlerContext ctx) {
-            super(ctx);
+            this.ctx = ctx;
         }
 
         @Override
-        protected void run(ChannelHandlerContext ctx) {
+        public void run() {
+            if (!ctx.channel().isOpen()) {
+                return;
+            }
 
             long nextDelay = allIdleTimeNanos;
             if (!reading) {
-                nextDelay -= ticksInNanos() - Math.max(lastReadTime, lastWriteTime);
+                nextDelay -= System.nanoTime() - Math.max(lastReadTime, lastWriteTime);
             }
             if (nextDelay <= 0) {
                 // Both reader and writer are idle - set a new timeout and
                 // notify the callback.
-                allIdleTimeout = schedule(ctx, this, allIdleTimeNanos, TimeUnit.NANOSECONDS);
-
-                boolean first = firstAllIdleEvent;
-                firstAllIdleEvent = false;
-
+                allIdleTimeout = ctx.executor().schedule(
+                        this, allIdleTimeNanos, TimeUnit.NANOSECONDS);
                 try {
-                    if (hasOutputChanged(ctx, first)) {
-                        return;
+                    IdleStateEvent event = newIdleStateEvent(IdleState.ALL_IDLE, firstAllIdleEvent);
+                    if (firstAllIdleEvent) {
+                        firstAllIdleEvent = false;
                     }
 
-                    IdleStateEvent event = newIdleStateEvent(IdleState.ALL_IDLE, first);
                     channelIdle(ctx, event);
                 } catch (Throwable t) {
                     ctx.fireExceptionCaught(t);
@@ -582,7 +472,7 @@ public class IdleStateHandler extends ChannelDuplexHandler {
             } else {
                 // Either read or write occurred before the timeout - set a new
                 // timeout with shorter delay.
-                allIdleTimeout = schedule(ctx, this, nextDelay, TimeUnit.NANOSECONDS);
+                allIdleTimeout = ctx.executor().schedule(this, nextDelay, TimeUnit.NANOSECONDS);
             }
         }
     }

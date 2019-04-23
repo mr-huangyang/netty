@@ -35,28 +35,21 @@ public class Bzip2EncoderTest extends AbstractEncoderTest {
 
     @Override
     protected ByteBuf decompress(ByteBuf compressed, int originalLength) throws Exception {
-        InputStream is = new ByteBufInputStream(compressed, true);
-        BZip2CompressorInputStream bzip2Is = null;
+        InputStream is = new ByteBufInputStream(compressed);
+        BZip2CompressorInputStream bzip2Is = new BZip2CompressorInputStream(is);
+
         byte[] decompressed = new byte[originalLength];
-        try {
-            bzip2Is = new BZip2CompressorInputStream(is);
-            int remaining = originalLength;
-            while (remaining > 0) {
-                int read = bzip2Is.read(decompressed, originalLength - remaining, remaining);
-                if (read > 0) {
-                    remaining -= read;
-                } else {
-                    break;
-                }
-            }
-            assertEquals(-1, bzip2Is.read());
-        } finally {
-            if (bzip2Is != null) {
-                bzip2Is.close();
+        int remaining = originalLength;
+        while (remaining > 0) {
+            int read = bzip2Is.read(decompressed, originalLength - remaining, remaining);
+            if (read > 0) {
+                remaining -= read;
             } else {
-                is.close();
+                break;
             }
         }
+        assertEquals(-1, bzip2Is.read());
+        bzip2Is.close();
 
         return Unpooled.wrappedBuffer(decompressed);
     }

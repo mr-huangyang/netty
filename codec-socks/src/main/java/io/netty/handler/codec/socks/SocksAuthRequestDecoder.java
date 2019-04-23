@@ -28,7 +28,11 @@ import java.util.List;
  */
 public class SocksAuthRequestDecoder extends ReplayingDecoder<State> {
 
+    private SocksSubnegotiationVersion version;
+    private int fieldLength;
     private String username;
+    private String password;
+    private SocksRequest msg = SocksCommonUtils.UNKNOWN_SOCKS_REQUEST;
 
     public SocksAuthRequestDecoder() {
         super(State.CHECK_PROTOCOL_VERSION);
@@ -38,28 +42,25 @@ public class SocksAuthRequestDecoder extends ReplayingDecoder<State> {
     protected void decode(ChannelHandlerContext ctx, ByteBuf byteBuf, List<Object> out) throws Exception {
         switch (state()) {
             case CHECK_PROTOCOL_VERSION: {
-                if (byteBuf.readByte() != SocksSubnegotiationVersion.AUTH_PASSWORD.byteValue()) {
-                    out.add(SocksCommonUtils.UNKNOWN_SOCKS_REQUEST);
+                version = SocksSubnegotiationVersion.valueOf(byteBuf.readByte());
+                if (version != SocksSubnegotiationVersion.AUTH_PASSWORD) {
                     break;
                 }
                 checkpoint(State.READ_USERNAME);
             }
             case READ_USERNAME: {
-                int fieldLength = byteBuf.readByte();
+                fieldLength = byteBuf.readByte();
                 username = SocksCommonUtils.readUsAscii(byteBuf, fieldLength);
                 checkpoint(State.READ_PASSWORD);
             }
             case READ_PASSWORD: {
-                int fieldLength = byteBuf.readByte();
-                String password = SocksCommonUtils.readUsAscii(byteBuf, fieldLength);
-                out.add(new SocksAuthRequest(username, password));
-                break;
-            }
-            default: {
-                throw new Error();
+                fieldLength = byteBuf.readByte();
+                password = SocksCommonUtils.readUsAscii(byteBuf, fieldLength);
+                msg = new SocksAuthRequest(username, password);
             }
         }
         ctx.pipeline().remove(this);
+        out.add(msg);
     }
 
     enum State {

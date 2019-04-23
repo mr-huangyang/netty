@@ -14,18 +14,17 @@
  */
 package io.netty.handler.codec;
 
+import io.netty.handler.codec.DefaultHeaders.HeaderDateFormat;
 import io.netty.util.AsciiString;
 import io.netty.util.internal.PlatformDependent;
 
 import java.text.ParseException;
-import java.util.Date;
 
 /**
  * Converts to/from native types, general {@link Object}, and {@link CharSequence}s.
  */
 public class CharSequenceValueConverter implements ValueConverter<CharSequence> {
     public static final CharSequenceValueConverter INSTANCE = new CharSequenceValueConverter();
-    private static final AsciiString TRUE_ASCII = new AsciiString("true");
 
     @Override
     public CharSequence convertObject(Object value) {
@@ -67,7 +66,10 @@ public class CharSequenceValueConverter implements ValueConverter<CharSequence> 
 
     @Override
     public boolean convertToBoolean(CharSequence value) {
-        return AsciiString.contentEqualsIgnoreCase(value, TRUE_ASCII);
+        if (value instanceof AsciiString) {
+            return ((AsciiString) value).parseBoolean();
+        }
+        return Boolean.parseBoolean(value.toString());
     }
 
     @Override
@@ -77,7 +79,7 @@ public class CharSequenceValueConverter implements ValueConverter<CharSequence> 
 
     @Override
     public byte convertToByte(CharSequence value) {
-        if (value instanceof AsciiString && value.length() == 1) {
+        if (value instanceof AsciiString) {
             return ((AsciiString) value).byteAt(0);
         }
         return Byte.parseByte(value.toString());
@@ -119,17 +121,17 @@ public class CharSequenceValueConverter implements ValueConverter<CharSequence> 
 
     @Override
     public CharSequence convertTimeMillis(long value) {
-        return DateFormatter.format(new Date(value));
+        return String.valueOf(value);
     }
 
     @Override
     public long convertToTimeMillis(CharSequence value) {
-        Date date = DateFormatter.parseHttpDate(value);
-        if (date == null) {
-            PlatformDependent.throwException(new ParseException("header can't be parsed into a Date: " + value, 0));
+        try {
+            return HeaderDateFormat.get().parse(value.toString());
+        } catch (ParseException e) {
+            PlatformDependent.throwException(e);
             return 0;
         }
-        return date.getTime();
     }
 
     @Override

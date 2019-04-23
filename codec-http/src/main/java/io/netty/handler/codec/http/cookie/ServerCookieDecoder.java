@@ -96,43 +96,45 @@ public final class ServerCookieDecoder extends CookieDecoder {
             }
 
             int nameBegin = i;
-            int nameEnd;
-            int valueBegin;
-            int valueEnd;
+            int nameEnd = i;
+            int valueBegin = -1;
+            int valueEnd = -1;
 
-            for (;;) {
+            if (i != headerLen) {
+                keyValLoop: for (;;) {
 
-                char curChar = header.charAt(i);
-                if (curChar == ';') {
-                    // NAME; (no value till ';')
-                    nameEnd = i;
-                    valueBegin = valueEnd = -1;
-                    break;
+                    char curChar = header.charAt(i);
+                    if (curChar == ';') {
+                        // NAME; (no value till ';')
+                        nameEnd = i;
+                        valueBegin = valueEnd = -1;
+                        break keyValLoop;
 
-                } else if (curChar == '=') {
-                    // NAME=VALUE
-                    nameEnd = i;
-                    i++;
-                    if (i == headerLen) {
-                        // NAME= (empty value, i.e. nothing after '=')
-                        valueBegin = valueEnd = 0;
-                        break;
+                    } else if (curChar == '=') {
+                        // NAME=VALUE
+                        nameEnd = i;
+                        i++;
+                        if (i == headerLen) {
+                            // NAME= (empty value, i.e. nothing after '=')
+                            valueBegin = valueEnd = 0;
+                            break keyValLoop;
+                        }
+
+                        valueBegin = i;
+                        // NAME=VALUE;
+                        int semiPos = header.indexOf(';', i);
+                        valueEnd = i = semiPos > 0 ? semiPos : headerLen;
+                        break keyValLoop;
+                    } else {
+                        i++;
                     }
 
-                    valueBegin = i;
-                    // NAME=VALUE;
-                    int semiPos = header.indexOf(';', i);
-                    valueEnd = i = semiPos > 0 ? semiPos : headerLen;
-                    break;
-                } else {
-                    i++;
-                }
-
-                if (i == headerLen) {
-                    // NAME (no value till the end of string)
-                    nameEnd = headerLen;
-                    valueBegin = valueEnd = -1;
-                    break;
+                    if (i == headerLen) {
+                        // NAME (no value till the end of string)
+                        nameEnd = headerLen;
+                        valueBegin = valueEnd = -1;
+                        break;
+                    }
                 }
             }
 

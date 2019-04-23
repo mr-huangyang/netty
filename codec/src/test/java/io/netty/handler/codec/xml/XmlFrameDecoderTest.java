@@ -143,24 +143,17 @@ public class XmlFrameDecoderTest {
     }
 
     @Test
-    public void testFraming() {
-        testDecodeWithXml(Arrays.asList("<abc", ">123</a", "bc>"), "<abc>123</abc>");
-    }
-
-    @Test
     public void testDecodeWithSampleXml() {
         for (final String xmlSample : xmlSamples) {
             testDecodeWithXml(xmlSample, xmlSample);
         }
     }
 
-    private static void testDecodeWithXml(List<String> xmlFrames, Object... expected) {
+    private static void testDecodeWithXml(String xml, Object... expected) {
         EmbeddedChannel ch = new EmbeddedChannel(new XmlFrameDecoder(1048576));
         Exception cause = null;
         try {
-            for (String xmlFrame : xmlFrames) {
-                ch.writeInbound(Unpooled.copiedBuffer(xmlFrame, CharsetUtil.UTF_8));
-            }
+            ch.writeInbound(Unpooled.copiedBuffer(xml, CharsetUtil.UTF_8));
         } catch (Exception e) {
             cause = e;
         }
@@ -185,10 +178,6 @@ public class XmlFrameDecoderTest {
         } finally {
             ch.finish();
         }
-    }
-
-    private static void testDecodeWithXml(String xml, Object... expected) {
-        testDecodeWithXml(Collections.singletonList(xml), expected);
     }
 
     private String sample(String number) throws IOException, URISyntaxException {

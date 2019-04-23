@@ -1,7 +1,7 @@
 /*
  * Copyright 2012 The Netty Project
  *
- * The Netty Project licenses this file to the License at:
+ * The Netty Project licenses this file tothe License at:
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -26,21 +26,42 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.ScatteringByteChannel;
 
+/**
+ *  global recycler --> threadlocal --> stack
+ *  1:内部维护了一个全局的 recycler 对象管理所有的PooledHeapByteBuf 对象
+ *  <br/>
+ *  2: 一个buf绑定一个handle
+ */
 class PooledHeapByteBuf extends PooledByteBuf<byte[]> {
 
+    /**
+     * 对象池，基于thread-local
+     */
     private static final Recycler<PooledHeapByteBuf> RECYCLER = new Recycler<PooledHeapByteBuf>() {
         @Override
         protected PooledHeapByteBuf newObject(Handle<PooledHeapByteBuf> handle) {
+            //为什么初始 capacity==0 ???
             return new PooledHeapByteBuf(handle, 0);
         }
     };
 
+    /**
+     * 从缓存中取出对象，并重置。
+     * @param maxCapacity
+     * @return
+     */
     static PooledHeapByteBuf newInstance(int maxCapacity) {
         PooledHeapByteBuf buf = RECYCLER.get();
+        //必须调用重用方法
         buf.reuse(maxCapacity);
         return buf;
     }
 
+    /**
+     *
+     * @param recyclerHandle
+     * @param maxCapacity
+     */
     PooledHeapByteBuf(Recycler.Handle<? extends PooledHeapByteBuf> recyclerHandle, int maxCapacity) {
         super(recyclerHandle, maxCapacity);
     }
@@ -117,8 +138,8 @@ class PooledHeapByteBuf extends PooledByteBuf<byte[]> {
 
     @Override
     public final ByteBuf getBytes(int index, ByteBuffer dst) {
-        checkIndex(index, dst.remaining());
-        dst.put(memory, idx(index), dst.remaining());
+        checkIndex(index);
+        dst.put(memory, idx(index), Math.min(capacity() - index, dst.remaining()));
         return this;
     }
 

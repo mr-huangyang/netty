@@ -18,11 +18,7 @@ package io.netty.handler.codec.http;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.CodecException;
-import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.compression.ZlibCodecFactory;
 import io.netty.handler.codec.compression.ZlibDecoder;
 import io.netty.handler.codec.compression.ZlibEncoder;
@@ -34,11 +30,8 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 public class HttpContentDecoderTest {
@@ -87,48 +80,6 @@ public class HttpContentDecoderTest {
         assertHasInboundMessages(channel, false);
         assertHasOutboundMessages(channel, false);
         assertFalse(channel.finish()); // assert that no messages are left in channel
-    }
-
-    @Test
-    public void testChunkedRequestDecompression() {
-        HttpResponseDecoder decoder = new HttpResponseDecoder();
-        HttpContentDecoder decompressor = new HttpContentDecompressor();
-
-        EmbeddedChannel channel = new EmbeddedChannel(decoder, decompressor, null);
-
-        String headers = "HTTP/1.1 200 OK\r\n"
-                + "Transfer-Encoding: chunked\r\n"
-                + "Trailer: My-Trailer\r\n"
-                + "Content-Encoding: gzip\r\n\r\n";
-
-        channel.writeInbound(Unpooled.copiedBuffer(headers.getBytes(CharsetUtil.US_ASCII)));
-
-        String chunkLength = Integer.toHexString(GZ_HELLO_WORLD.length);
-        assertTrue(channel.writeInbound(Unpooled.copiedBuffer(chunkLength + "\r\n", CharsetUtil.US_ASCII)));
-        assertTrue(channel.writeInbound(Unpooled.copiedBuffer(GZ_HELLO_WORLD)));
-        assertTrue(channel.writeInbound(Unpooled.copiedBuffer("\r\n".getBytes(CharsetUtil.US_ASCII))));
-        assertTrue(channel.writeInbound(Unpooled.copiedBuffer("0\r\n", CharsetUtil.US_ASCII)));
-        assertTrue(channel.writeInbound(Unpooled.copiedBuffer("My-Trailer: 42\r\n\r\n\r\n", CharsetUtil.US_ASCII)));
-
-        Object ob1 = channel.readInbound();
-        assertThat(ob1, is(instanceOf(DefaultHttpResponse.class)));
-
-        Object ob2 = channel.readInbound();
-        assertThat(ob1, is(instanceOf(DefaultHttpResponse.class)));
-        HttpContent content = (HttpContent) ob2;
-        assertEquals(HELLO_WORLD, content.content().toString(CharsetUtil.US_ASCII));
-        content.release();
-
-        Object ob3 = channel.readInbound();
-        assertThat(ob1, is(instanceOf(DefaultHttpResponse.class)));
-        LastHttpContent lastContent = (LastHttpContent) ob3;
-        assertNotNull(lastContent.decoderResult());
-        assertTrue(lastContent.decoderResult().isSuccess());
-        assertFalse(lastContent.trailingHeaders().isEmpty());
-        assertEquals("42", lastContent.trailingHeaders().get("My-Trailer"));
-        assertHasInboundMessages(channel, false);
-        assertHasOutboundMessages(channel, false);
-        assertFalse(channel.finish());
     }
 
     @Test
@@ -262,60 +213,6 @@ public class HttpContentDecoderTest {
         assertTrue(channel.writeInbound(Unpooled.wrappedBuffer(GZ_HELLO_WORLD)));
 
         assertHasInboundMessages(channel, true);
-        assertHasOutboundMessages(channel, false);
-        assertFalse(channel.finish());
-    }
-
-    @Test
-    public void testExpectContinueResetHttpObjectDecoder() {
-        // request with header "Expect: 100-continue" must be replied with one "100 Continue" response
-        // case 5: Test that HttpObjectDecoder correctly resets its internal state after a failed expectation.
-        HttpRequestDecoder decoder = new HttpRequestDecoder();
-        final int maxBytes = 10;
-        HttpObjectAggregator aggregator = new HttpObjectAggregator(maxBytes);
-        final AtomicReference<FullHttpRequest> secondRequestRef = new AtomicReference<FullHttpRequest>();
-        EmbeddedChannel channel = new EmbeddedChannel(decoder, aggregator, new ChannelInboundHandlerAdapter() {
-            @Override
-            public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-                if (msg instanceof FullHttpRequest) {
-                    if (!secondRequestRef.compareAndSet(null, (FullHttpRequest) msg)) {
-                        ((FullHttpRequest) msg).release();
-                    }
-                } else {
-                    ReferenceCountUtil.release(msg);
-                }
-            }
-        });
-        String req1 = "POST /1 HTTP/1.1\r\n" +
-                "Content-Length: " + (maxBytes + 1) + "\r\n" +
-                "Expect: 100-continue\r\n" +
-                "\r\n";
-        assertFalse(channel.writeInbound(Unpooled.wrappedBuffer(req1.getBytes(CharsetUtil.US_ASCII))));
-
-        FullHttpResponse resp = channel.readOutbound();
-        assertEquals(HttpStatusClass.CLIENT_ERROR, resp.status().codeClass());
-        resp.release();
-
-        String req2 = "POST /2 HTTP/1.1\r\n" +
-                "Content-Length: " + maxBytes + "\r\n" +
-                "Expect: 100-continue\r\n" +
-                "\r\n";
-        assertFalse(channel.writeInbound(Unpooled.wrappedBuffer(req2.getBytes(CharsetUtil.US_ASCII))));
-
-        resp = channel.readOutbound();
-        assertEquals(100, resp.status().code());
-        resp.release();
-
-        byte[] content = new byte[maxBytes];
-        assertFalse(channel.writeInbound(Unpooled.wrappedBuffer(content)));
-
-        FullHttpRequest req = secondRequestRef.get();
-        assertNotNull(req);
-        assertEquals("/2", req.uri());
-        assertEquals(10, req.content().readableBytes());
-        req.release();
-
-        assertHasInboundMessages(channel, false);
         assertHasOutboundMessages(channel, false);
         assertFalse(channel.finish());
     }
@@ -462,7 +359,7 @@ public class HttpContentDecoderTest {
         int contentLength = 0;
         contentLength = calculateContentLength(req, contentLength);
 
-        byte[] receivedContent = readContent(req, contentLength, true);
+        byte[] receivedContent = readContent(req, contentLength);
 
         assertEquals(HELLO_WORLD, new String(receivedContent, CharsetUtil.US_ASCII));
 
@@ -489,78 +386,13 @@ public class HttpContentDecoderTest {
         int contentLength = 0;
         contentLength = calculateContentLength(resp, contentLength);
 
-        byte[] receivedContent = readContent(resp, contentLength, true);
+        byte[] receivedContent = readContent(resp, contentLength);
 
         assertEquals(HELLO_WORLD, new String(receivedContent, CharsetUtil.US_ASCII));
 
         assertHasInboundMessages(channel, true);
         assertHasOutboundMessages(channel, false);
         assertFalse(channel.finish());
-    }
-
-    // See https://github.com/netty/netty/issues/5892
-    @Test
-    public void testFullHttpResponseEOF() {
-        // test that ContentDecoder can be used after the ObjectAggregator
-        HttpResponseDecoder decoder = new HttpResponseDecoder(4096, 4096, 5);
-        HttpContentDecoder decompressor = new HttpContentDecompressor();
-        EmbeddedChannel channel = new EmbeddedChannel(decoder, decompressor);
-        String headers = "HTTP/1.1 200 OK\r\n" +
-                "Content-Encoding: gzip\r\n" +
-                "\r\n";
-        assertTrue(channel.writeInbound(Unpooled.copiedBuffer(headers.getBytes(), GZ_HELLO_WORLD)));
-        // This should terminate it.
-        assertTrue(channel.finish());
-
-        Queue<Object> resp = channel.inboundMessages();
-        assertTrue(resp.size() > 1);
-        int contentLength = 0;
-        contentLength = calculateContentLength(resp, contentLength);
-
-        byte[] receivedContent = readContent(resp, contentLength, false);
-
-        assertEquals(HELLO_WORLD, new String(receivedContent, CharsetUtil.US_ASCII));
-
-        assertHasInboundMessages(channel, true);
-        assertHasOutboundMessages(channel, false);
-        assertFalse(channel.finish());
-    }
-
-    @Test
-    public void testCleanupThrows() {
-        HttpContentDecoder decoder = new HttpContentDecoder() {
-            @Override
-            protected EmbeddedChannel newContentDecoder(String contentEncoding) throws Exception {
-                return new EmbeddedChannel(new ChannelInboundHandlerAdapter() {
-                    @Override
-                    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-                        ctx.fireExceptionCaught(new DecoderException());
-                        ctx.fireChannelInactive();
-                    }
-                });
-            }
-        };
-
-        final AtomicBoolean channelInactiveCalled = new AtomicBoolean();
-        EmbeddedChannel channel = new EmbeddedChannel(decoder, new ChannelInboundHandlerAdapter() {
-            @Override
-            public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-                assertTrue(channelInactiveCalled.compareAndSet(false, true));
-                super.channelInactive(ctx);
-            }
-        });
-        assertTrue(channel.writeInbound(new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/")));
-        HttpContent content = new DefaultHttpContent(Unpooled.buffer().writeZero(10));
-        assertTrue(channel.writeInbound(content));
-        assertEquals(1, content.refCnt());
-        try {
-            channel.finishAndReleaseAll();
-            fail();
-        } catch (CodecException expected) {
-            // expected
-        }
-        assertTrue(channelInactiveCalled.get());
-        assertEquals(0, content.refCnt());
     }
 
     private static byte[] gzDecompress(byte[] input) {
@@ -589,7 +421,7 @@ public class HttpContentDecoderTest {
         return output;
     }
 
-    private static byte[] readContent(Queue<Object> req, int contentLength, boolean hasTransferEncoding) {
+    private static byte[] readContent(Queue<Object> req, int contentLength) {
         byte[] receivedContent = new byte[contentLength];
         int readCount = 0;
         for (Object o : req) {
@@ -598,10 +430,6 @@ public class HttpContentDecoderTest {
                 int readableBytes = b.readableBytes();
                 b.readBytes(receivedContent, readCount, readableBytes);
                 readCount += readableBytes;
-            }
-            if (o instanceof HttpMessage) {
-                assertEquals(hasTransferEncoding,
-                        ((HttpMessage) o).headers().contains(HttpHeaderNames.TRANSFER_ENCODING));
             }
         }
         return receivedContent;

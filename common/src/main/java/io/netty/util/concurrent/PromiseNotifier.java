@@ -15,7 +15,6 @@
  */
 package io.netty.util.concurrent;
 
-import io.netty.util.internal.PromiseNotificationUtil;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
@@ -64,20 +63,25 @@ public class PromiseNotifier<V, F extends Future<V>> implements GenericFutureLis
 
     @Override
     public void operationComplete(F future) throws Exception {
-        InternalLogger internalLogger = logNotifyFailure ? logger : null;
         if (future.isSuccess()) {
             V result = future.get();
             for (Promise<? super V> p: promises) {
-                PromiseNotificationUtil.trySuccess(p, result, internalLogger);
+                if (!p.trySuccess(result) && logNotifyFailure) {
+                    logger.warn("Failed to mark a promise as success because it is done already: {}", p);
+                }
             }
         } else if (future.isCancelled()) {
             for (Promise<? super V> p: promises) {
-                PromiseNotificationUtil.tryCancel(p, internalLogger);
+                if (!p.cancel(false) && logNotifyFailure) {
+                    logger.warn("Failed to cancel a promise because it is done already: {}", p);
+                }
             }
         } else {
             Throwable cause = future.cause();
             for (Promise<? super V> p: promises) {
-                PromiseNotificationUtil.tryFailure(p, cause, internalLogger);
+                if (!p.tryFailure(cause) && logNotifyFailure) {
+                    logger.warn("Failed to mark a promise as failure because it's done already: {}", p, cause);
+                }
             }
         }
     }

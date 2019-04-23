@@ -32,6 +32,7 @@ import static io.netty.channel.ChannelOption.*;
 
 /**
  * The default {@link SocketChannelConfig} implementation.
+ * 代理 java socket 配置
  */
 public class DefaultSocketChannelConfig extends DefaultChannelConfig
                                         implements SocketChannelConfig {
@@ -324,12 +325,14 @@ public class DefaultSocketChannelConfig extends DefaultChannelConfig
     }
 
     @Override
+    @Deprecated
     public SocketChannelConfig setWriteBufferHighWaterMark(int writeBufferHighWaterMark) {
         super.setWriteBufferHighWaterMark(writeBufferHighWaterMark);
         return this;
     }
 
     @Override
+    @Deprecated
     public SocketChannelConfig setWriteBufferLowWaterMark(int writeBufferLowWaterMark) {
         super.setWriteBufferLowWaterMark(writeBufferLowWaterMark);
         return this;

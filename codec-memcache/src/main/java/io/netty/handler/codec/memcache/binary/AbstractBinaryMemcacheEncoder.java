@@ -19,6 +19,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.codec.memcache.AbstractMemcacheObjectEncoder;
+import io.netty.util.CharsetUtil;
 import io.netty.util.internal.UnstableApi;
 
 /**

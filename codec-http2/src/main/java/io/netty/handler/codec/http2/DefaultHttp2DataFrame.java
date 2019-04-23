@@ -18,7 +18,6 @@ package io.netty.handler.codec.http2;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.IllegalReferenceCountException;
-import io.netty.util.internal.StringUtil;
 import io.netty.util.internal.UnstableApi;
 
 import static io.netty.handler.codec.http2.Http2CodecUtil.verifyPadding;
@@ -32,7 +31,6 @@ public final class DefaultHttp2DataFrame extends AbstractHttp2StreamFrame implem
     private final ByteBuf content;
     private final boolean endStream;
     private final int padding;
-    private final int initialFlowControlledBytes;
 
     /**
      * Equivalent to {@code new DefaultHttp2DataFrame(content, false)}.
@@ -75,15 +73,11 @@ public final class DefaultHttp2DataFrame extends AbstractHttp2StreamFrame implem
         this.endStream = endStream;
         verifyPadding(padding);
         this.padding = padding;
-        if (content().readableBytes() + (long) padding > Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("content + padding must be <= Integer.MAX_VALUE");
-        }
-        initialFlowControlledBytes = content().readableBytes() + padding;
     }
 
     @Override
-    public DefaultHttp2DataFrame stream(Http2FrameStream stream) {
-        super.stream(stream);
+    public DefaultHttp2DataFrame setStreamId(int streamId) {
+        super.setStreamId(streamId);
         return this;
     }
 
@@ -108,11 +102,6 @@ public final class DefaultHttp2DataFrame extends AbstractHttp2StreamFrame implem
             throw new IllegalReferenceCountException(content.refCnt());
         }
         return content;
-    }
-
-    @Override
-    public int initialFlowControlledBytes() {
-        return initialFlowControlledBytes;
     }
 
     @Override
@@ -164,8 +153,8 @@ public final class DefaultHttp2DataFrame extends AbstractHttp2StreamFrame implem
 
     @Override
     public String toString() {
-        return StringUtil.simpleClassName(this) + "(stream=" + stream() + ", content=" + content
-               + ", endStream=" + endStream + ", padding=" + padding + ')';
+        return "DefaultHttp2DataFrame(streamId=" + streamId() + ", content=" + content
+            + ", endStream=" + endStream + ", padding=" + padding + ")";
     }
 
     @Override

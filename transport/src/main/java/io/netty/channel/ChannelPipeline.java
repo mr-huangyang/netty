@@ -166,7 +166,7 @@ import java.util.NoSuchElementException;
  *     }
  * }
  *
- * public class MyOutboundHandler extends {@link ChannelOutboundHandlerAdapter} {
+ * public clas MyOutboundHandler extends {@link ChannelOutboundHandlerAdapter} {
  *     {@code @Override}
  *     public void close({@link ChannelHandlerContext} ctx, {@link ChannelPromise} promise) {
  *         System.out.println("Closing ..");
@@ -212,6 +212,13 @@ import java.util.NoSuchElementException;
  * A {@link ChannelHandler} can be added or removed at any time because a {@link ChannelPipeline} is thread safe.
  * For example, you can insert an encryption handler when sensitive information is about to be exchanged, and remove it
  * after the exchange.
+ *
+ * <br/>
+ * a: channel事件处理链(由ChannelHandler处理)，类型servlet中的filter
+ * <br/>
+ * b: refer--> Channel , ChannelHandler , ChannelHandlerContext
+ * c: 同样继承了 {@link ChannelInboundInvoker} {@link ChannelOutboundInvoker} 触发各种事件
+ *
  */
 public interface ChannelPipeline
         extends ChannelInboundInvoker, ChannelOutboundInvoker, Iterable<Entry<String, ChannelHandler>> {
@@ -597,7 +604,7 @@ public interface ChannelPipeline
     @Override
     ChannelPipeline fireChannelRegistered();
 
-    @Override
+     @Override
     ChannelPipeline fireChannelUnregistered();
 
     @Override

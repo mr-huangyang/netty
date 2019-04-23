@@ -45,6 +45,9 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Abstract base class for {@link Channel} implementations which use a Selector based approach.
+ * <br/>
+ * a: 对 java nio的封装 。从这里可以看出channel 与 event loop的关系紧密
+ * b: 具体子类负责创建 SelectableChannel
  */
 public abstract class AbstractNioChannel extends AbstractChannel {
 
@@ -75,6 +78,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
 
     /**
      * Create a new instance
+     * 配置 nio non blocking
      *
      * @param parent            the parent {@link Channel} by which this instance was created. May be {@code null}
      * @param ch                the underlying {@link SelectableChannel} on which it operates
@@ -251,7 +255,9 @@ public abstract class AbstractNioChannel extends AbstractChannel {
                 }
 
                 boolean wasActive = isActive();
+
                 if (doConnect(remoteAddress, localAddress)) {
+                    //non blocking 情况下 不会执行到此处
                     fulfillConnectPromise(promise, wasActive);
                 } else {
                     connectPromise = promise;
@@ -356,9 +362,10 @@ public abstract class AbstractNioChannel extends AbstractChannel {
             // Flush immediately only when there's no pending flush.
             // If there's a pending flush operation, event loop will call forceFlush() later,
             // and thus there's no need to call it now.
-            if (!isFlushPending()) {
-                super.flush0();
+            if (isFlushPending()) {
+                return;
             }
+            super.flush0();
         }
 
         @Override
@@ -378,12 +385,18 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         return loop instanceof NioEventLoop;
     }
 
+    /**
+     * 注册到java nio 中
+     * @throws Exception
+     */
     @Override
     protected void doRegister() throws Exception {
         boolean selected = false;
         for (;;) {
             try {
-                selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
+                //#!! java channel 注册 并将 netty channel 与 java channel 绑定
+                // 注册java nio 时,把netty channel attach 到 selector上
+                selectionKey = javaChannel().register(eventLoop().selector, 0, this);
                 return;
             } catch (CancelledKeyException e) {
                 if (!selected) {
@@ -405,6 +418,10 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         eventLoop().cancel(selectionKey());
     }
 
+    /**
+     * 注册java nio 读事件
+     * @throws Exception
+     */
     @Override
     protected void doBeginRead() throws Exception {
         // Channel.read() or ChannelHandlerContext.read() was called

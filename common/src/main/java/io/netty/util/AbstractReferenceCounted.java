@@ -15,55 +15,76 @@
  */
 package io.netty.util;
 
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import io.netty.util.internal.PlatformDependent;
 
-import io.netty.util.internal.ReferenceCountUpdater;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 /**
  * Abstract base class for classes wants to implement {@link ReferenceCounted}.
  */
 public abstract class AbstractReferenceCounted implements ReferenceCounted {
-    private static final long REFCNT_FIELD_OFFSET =
-            ReferenceCountUpdater.getUnsafeOffset(AbstractReferenceCounted.class, "refCnt");
-    private static final AtomicIntegerFieldUpdater<AbstractReferenceCounted> AIF_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(AbstractReferenceCounted.class, "refCnt");
 
-    private static final ReferenceCountUpdater<AbstractReferenceCounted> updater =
-            new ReferenceCountUpdater<AbstractReferenceCounted>() {
-        @Override
-        protected AtomicIntegerFieldUpdater<AbstractReferenceCounted> updater() {
-            return AIF_UPDATER;
-        }
-        @Override
-        protected long unsafeOffset() {
-            return REFCNT_FIELD_OFFSET;
-        }
-    };
+    private static final AtomicIntegerFieldUpdater<AbstractReferenceCounted> refCntUpdater;
 
-    // Value might not equal "real" reference count, all access should be via the updater
-    @SuppressWarnings("unused")
-    private volatile int refCnt = updater.initialValue();
+    static {
+        AtomicIntegerFieldUpdater<AbstractReferenceCounted> updater =
+                PlatformDependent.newAtomicIntegerFieldUpdater(AbstractReferenceCounted.class, "refCnt");
+        if (updater == null) {
+            updater = AtomicIntegerFieldUpdater.newUpdater(AbstractReferenceCounted.class, "refCnt");
+        }
+        refCntUpdater = updater;
+    }
+
+    private volatile int refCnt = 1;
 
     @Override
-    public int refCnt() {
-        return updater.refCnt(this);
+    public final int refCnt() {
+        return refCnt;
     }
 
     /**
      * An unsafe operation intended for use by a subclass that sets the reference count of the buffer directly
      */
     protected final void setRefCnt(int refCnt) {
-        updater.setRefCnt(this, refCnt);
+        this.refCnt = refCnt;
     }
 
     @Override
     public ReferenceCounted retain() {
-        return updater.retain(this);
+        for (;;) {
+            int refCnt = this.refCnt;
+            final int nextCnt = refCnt + 1;
+
+            // Ensure we not resurrect (which means the refCnt was 0) and also that we encountered an overflow.
+            if (nextCnt <= 1) {
+                throw new IllegalReferenceCountException(refCnt, 1);
+            }
+            if (refCntUpdater.compareAndSet(this, refCnt, nextCnt)) {
+                break;
+            }
+        }
+        return this;
     }
 
     @Override
     public ReferenceCounted retain(int increment) {
-        return updater.retain(this, increment);
+        if (increment <= 0) {
+            throw new IllegalArgumentException("increment: " + increment + " (expected: > 0)");
+        }
+
+        for (;;) {
+            int refCnt = this.refCnt;
+            final int nextCnt = refCnt + increment;
+
+            // Ensure we not resurrect (which means the refCnt was 0) and also that we encountered an overflow.
+            if (nextCnt <= increment) {
+                throw new IllegalReferenceCountException(refCnt, increment);
+            }
+            if (refCntUpdater.compareAndSet(this, refCnt, nextCnt)) {
+                break;
+            }
+        }
+        return this;
     }
 
     @Override
@@ -73,19 +94,42 @@ public abstract class AbstractReferenceCounted implements ReferenceCounted {
 
     @Override
     public boolean release() {
-        return handleRelease(updater.release(this));
+        for (;;) {
+            int refCnt = this.refCnt;
+            if (refCnt == 0) {
+                throw new IllegalReferenceCountException(0, -1);
+            }
+
+            if (refCntUpdater.compareAndSet(this, refCnt, refCnt - 1)) {
+                if (refCnt == 1) {
+                    deallocate();
+                    return true;
+                }
+                return false;
+            }
+        }
     }
 
     @Override
     public boolean release(int decrement) {
-        return handleRelease(updater.release(this, decrement));
-    }
-
-    private boolean handleRelease(boolean result) {
-        if (result) {
-            deallocate();
+        if (decrement <= 0) {
+            throw new IllegalArgumentException("decrement: " + decrement + " (expected: > 0)");
         }
-        return result;
+
+        for (;;) {
+            int refCnt = this.refCnt;
+            if (refCnt < decrement) {
+                throw new IllegalReferenceCountException(refCnt, -decrement);
+            }
+
+            if (refCntUpdater.compareAndSet(this, refCnt, refCnt - decrement)) {
+                if (refCnt == decrement) {
+                    deallocate();
+                    return true;
+                }
+                return false;
+            }
+        }
     }
 
     /**

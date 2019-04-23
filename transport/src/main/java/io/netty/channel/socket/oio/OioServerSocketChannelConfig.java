@@ -39,10 +39,7 @@ import io.netty.channel.socket.ServerSocketChannelConfig;
  * <td>{@link ChannelOption#SO_TIMEOUT}</td><td>{@link #setSoTimeout(int)}</td>
  * </tr>
  * </table>
- *
- * @deprecated use NIO / EPOLL / KQUEUE transport.
  */
-@Deprecated
 public interface OioServerSocketChannelConfig extends ServerSocketChannelConfig {
 
     /**
@@ -90,9 +87,11 @@ public interface OioServerSocketChannelConfig extends ServerSocketChannelConfig 
     OioServerSocketChannelConfig setAutoClose(boolean autoClose);
 
     @Override
+    @Deprecated
     OioServerSocketChannelConfig setWriteBufferHighWaterMark(int writeBufferHighWaterMark);
 
     @Override
+    @Deprecated
     OioServerSocketChannelConfig setWriteBufferLowWaterMark(int writeBufferLowWaterMark);
 
     @Override

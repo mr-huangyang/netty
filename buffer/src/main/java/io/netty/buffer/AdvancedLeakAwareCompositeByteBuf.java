@@ -17,7 +17,7 @@ package io.netty.buffer;
 
 
 import io.netty.util.ByteProcessor;
-import io.netty.util.ResourceLeakTracker;
+import io.netty.util.ResourceLeak;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,70 +33,77 @@ import java.util.List;
 
 import static io.netty.buffer.AdvancedLeakAwareByteBuf.recordLeakNonRefCountingOperation;
 
-final class AdvancedLeakAwareCompositeByteBuf extends SimpleLeakAwareCompositeByteBuf {
+final class AdvancedLeakAwareCompositeByteBuf extends WrappedCompositeByteBuf {
 
-    AdvancedLeakAwareCompositeByteBuf(CompositeByteBuf wrapped, ResourceLeakTracker<ByteBuf> leak) {
-        super(wrapped, leak);
+    private final ResourceLeak leak;
+
+    AdvancedLeakAwareCompositeByteBuf(CompositeByteBuf wrapped, ResourceLeak leak) {
+        super(wrapped);
+        this.leak = leak;
     }
 
     @Override
     public ByteBuf order(ByteOrder endianness) {
         recordLeakNonRefCountingOperation(leak);
-        return super.order(endianness);
+        if (order() == endianness) {
+            return this;
+        } else {
+            return new AdvancedLeakAwareByteBuf(super.order(endianness), leak);
+        }
     }
 
     @Override
     public ByteBuf slice() {
         recordLeakNonRefCountingOperation(leak);
-        return super.slice();
+        return new AdvancedLeakAwareByteBuf(super.slice(), leak);
     }
 
     @Override
     public ByteBuf retainedSlice() {
         recordLeakNonRefCountingOperation(leak);
-        return super.retainedSlice();
+        return new AdvancedLeakAwareByteBuf(super.retainedSlice(), leak);
     }
 
     @Override
     public ByteBuf slice(int index, int length) {
         recordLeakNonRefCountingOperation(leak);
-        return super.slice(index, length);
+        return new AdvancedLeakAwareByteBuf(super.slice(index, length), leak);
     }
 
     @Override
     public ByteBuf retainedSlice(int index, int length) {
         recordLeakNonRefCountingOperation(leak);
-        return super.retainedSlice(index, length);
+        return new AdvancedLeakAwareByteBuf(super.retainedSlice(index, length), leak);
     }
 
     @Override
     public ByteBuf duplicate() {
         recordLeakNonRefCountingOperation(leak);
-        return super.duplicate();
+        return new AdvancedLeakAwareByteBuf(super.duplicate(), leak);
     }
 
     @Override
     public ByteBuf retainedDuplicate() {
         recordLeakNonRefCountingOperation(leak);
-        return super.retainedDuplicate();
+        return new AdvancedLeakAwareByteBuf(super.retainedDuplicate(), leak);
     }
 
     @Override
     public ByteBuf readSlice(int length) {
         recordLeakNonRefCountingOperation(leak);
-        return super.readSlice(length);
+        return new AdvancedLeakAwareByteBuf(super.readSlice(length), leak);
     }
 
     @Override
     public ByteBuf readRetainedSlice(int length) {
         recordLeakNonRefCountingOperation(leak);
-        return super.readRetainedSlice(length);
+        return new AdvancedLeakAwareByteBuf(super.readRetainedSlice(length), leak);
     }
 
     @Override
     public ByteBuf asReadOnly() {
         recordLeakNonRefCountingOperation(leak);
-        return super.asReadOnly();
+        return new AdvancedLeakAwareByteBuf(super.asReadOnly(), leak);
     }
 
     @Override
@@ -940,12 +947,6 @@ final class AdvancedLeakAwareCompositeByteBuf extends SimpleLeakAwareCompositeBy
     }
 
     @Override
-    public CompositeByteBuf addFlattenedComponents(boolean increaseWriterIndex, ByteBuf buffer) {
-        recordLeakNonRefCountingOperation(leak);
-        return super.addFlattenedComponents(increaseWriterIndex, buffer);
-    }
-
-    @Override
     public CompositeByteBuf removeComponent(int cIndex) {
         recordLeakNonRefCountingOperation(leak);
         return super.removeComponent(cIndex);
@@ -1024,18 +1025,6 @@ final class AdvancedLeakAwareCompositeByteBuf extends SimpleLeakAwareCompositeBy
     }
 
     @Override
-    public boolean release() {
-        leak.record();
-        return super.release();
-    }
-
-    @Override
-    public boolean release(int decrement) {
-        leak.record();
-        return super.release(decrement);
-    }
-
-    @Override
     public CompositeByteBuf touch() {
         leak.record();
         return this;
@@ -1048,8 +1037,24 @@ final class AdvancedLeakAwareCompositeByteBuf extends SimpleLeakAwareCompositeBy
     }
 
     @Override
-    protected AdvancedLeakAwareByteBuf newLeakAwareByteBuf(
-            ByteBuf wrapped, ByteBuf trackedByteBuf, ResourceLeakTracker<ByteBuf> leakTracker) {
-        return new AdvancedLeakAwareByteBuf(wrapped, trackedByteBuf, leakTracker);
+    public boolean release() {
+        boolean deallocated = super.release();
+        if (deallocated) {
+            leak.close();
+        } else {
+            leak.record();
+        }
+        return deallocated;
+    }
+
+    @Override
+    public boolean release(int decrement) {
+        boolean deallocated = super.release(decrement);
+        if (deallocated) {
+            leak.close();
+        } else {
+            leak.record();
+        }
+        return deallocated;
     }
 }

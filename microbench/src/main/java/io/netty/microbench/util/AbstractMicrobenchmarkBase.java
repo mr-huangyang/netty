@@ -43,8 +43,9 @@ public abstract class AbstractMicrobenchmarkBase {
     protected static final int DEFAULT_WARMUP_ITERATIONS = 10;
     protected static final int DEFAULT_MEASURE_ITERATIONS = 10;
     protected static final String[] BASE_JVM_ARGS = {
-        "-server", "-dsa", "-da", "-ea:io.netty...",
-        "-XX:+HeapDumpOnOutOfMemoryError", "-Dio.netty.leakDetection.level=disabled"};
+        "-server", "-dsa", "-da", "-ea:io.netty...", "-XX:+AggressiveOpts", "-XX:+UseBiasedLocking",
+        "-XX:+UseFastAccessorMethods", "-XX:+OptimizeStringConcat",
+        "-XX:+HeapDumpOnOutOfMemoryError", "-Dio.netty.noResourceLeakDetection"};
 
     static {
         ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.DISABLED);
@@ -92,7 +93,8 @@ public abstract class AbstractMicrobenchmarkBase {
             }
         }
         if (jvmArgs.length != customArgs.size()) {
-            jvmArgs = customArgs.toArray(new String[0]);
+            jvmArgs = new String[customArgs.size()];
+            customArgs.toArray(jvmArgs);
         }
         return jvmArgs;
     }

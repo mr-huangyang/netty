@@ -307,10 +307,12 @@ public class NioSctpChannel extends AbstractNioMessageChannel implements io.nett
             }
         }
         ByteBuffer nioData;
-        if (needsCopy) {
+        if (!needsCopy) {
+            nioData = data.nioBuffer();
+        } else {
             data = alloc.directBuffer(dataLen).writeBytes(data);
+            nioData = data.nioBuffer();
         }
-        nioData = data.nioBuffer();
         final MessageInfo mi = MessageInfo.createOutgoing(association(), null, packet.streamIdentifier());
         mi.payloadProtocolID(packet.protocolIdentifier());
         mi.streamNumber(packet.streamIdentifier());

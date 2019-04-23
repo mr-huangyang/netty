@@ -17,12 +17,10 @@ package io.netty.handler.codec.http2;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.http2.Http2Exception.StreamException;
 import io.netty.util.AsciiString;
 import org.junit.Before;
 import org.junit.Test;
 
-import static io.netty.handler.codec.http2.Http2TestUtil.newTestEncoder;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -34,7 +32,7 @@ public class DefaultHttp2HeadersEncoderTest {
 
     @Before
     public void setup() {
-        encoder = new DefaultHttp2HeadersEncoder(Http2HeadersEncoder.NEVER_SENSITIVE, newTestEncoder());
+        encoder = new DefaultHttp2HeadersEncoder();
     }
 
     @Test
@@ -42,18 +40,18 @@ public class DefaultHttp2HeadersEncoderTest {
         Http2Headers headers = headers();
         ByteBuf buf = Unpooled.buffer();
         try {
-            encoder.encodeHeaders(3 /* randomly chosen */, headers, buf);
+            encoder.encodeHeaders(headers, buf);
             assertTrue(buf.writerIndex() > 0);
         } finally {
             buf.release();
         }
     }
 
-    @Test(expected = StreamException.class)
+    @Test(expected = Http2Exception.class)
     public void headersExceedMaxSetSizeShouldFail() throws Http2Exception {
         Http2Headers headers = headers();
-        encoder.maxHeaderListSize(2);
-        encoder.encodeHeaders(3 /* randomly chosen */, headers, Unpooled.buffer());
+        encoder.headerTable().maxHeaderListSize(2);
+        encoder.encodeHeaders(headers, Unpooled.buffer());
     }
 
     private static Http2Headers headers() {

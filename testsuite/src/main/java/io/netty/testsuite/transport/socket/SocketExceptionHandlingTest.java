@@ -50,8 +50,9 @@ public class SocketExceptionHandlingTest extends AbstractSocketTest {
 
             serverChannel = sb.bind().syncUninterruptibly().channel();
 
-            cb.handler(new MyInitializer());
-            clientChannel = cb.connect(serverChannel.localAddress()).syncUninterruptibly().channel();
+            cb.remoteAddress(serverChannel.localAddress())
+              .handler(new MyInitializer());
+            clientChannel = cb.connect().syncUninterruptibly().channel();
 
             clientChannel.writeAndFlush(Unpooled.wrappedBuffer(new byte[1024]));
 

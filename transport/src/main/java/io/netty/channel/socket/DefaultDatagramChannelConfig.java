@@ -58,10 +58,6 @@ public class DefaultDatagramChannelConfig extends DefaultChannelConfig implement
         this.javaSocket = javaSocket;
     }
 
-    protected final DatagramSocket javaSocket() {
-        return javaSocket;
-    }
-
     @Override
     @SuppressWarnings("deprecation")
     public Map<ChannelOption<?>, Object> getOptions() {
@@ -161,7 +157,7 @@ public class DefaultDatagramChannelConfig extends DefaultChannelConfig implement
             // See: https://github.com/netty/netty/issues/576
             if (broadcast &&
                 !javaSocket.getLocalAddress().isAnyLocalAddress() &&
-                !PlatformDependent.isWindows() && !PlatformDependent.maybeSuperUser()) {
+                !PlatformDependent.isWindows() && !PlatformDependent.isRoot()) {
                 // Warn a user about the fact that a non-root user can't receive a
                 // broadcast packet on *nix if the socket is bound on non-wildcard address.
                 logger.warn(
@@ -406,12 +402,14 @@ public class DefaultDatagramChannelConfig extends DefaultChannelConfig implement
     }
 
     @Override
+    @Deprecated
     public DatagramChannelConfig setWriteBufferHighWaterMark(int writeBufferHighWaterMark) {
         super.setWriteBufferHighWaterMark(writeBufferHighWaterMark);
         return this;
     }
 
     @Override
+    @Deprecated
     public DatagramChannelConfig setWriteBufferLowWaterMark(int writeBufferLowWaterMark) {
         super.setWriteBufferLowWaterMark(writeBufferLowWaterMark);
         return this;

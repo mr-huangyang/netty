@@ -424,11 +424,6 @@ class WrappedCompositeByteBuf extends CompositeByteBuf {
     }
 
     @Override
-    final boolean isAccessible() {
-        return wrapped.isAccessible();
-    }
-
-    @Override
     public ByteBuf duplicate() {
         return wrapped.duplicate();
     }
@@ -545,12 +540,6 @@ class WrappedCompositeByteBuf extends CompositeByteBuf {
     @Override
     public CompositeByteBuf addComponent(boolean increaseWriterIndex, int cIndex, ByteBuf buffer) {
         wrapped.addComponent(increaseWriterIndex, cIndex, buffer);
-        return this;
-    }
-
-    @Override
-    public CompositeByteBuf addFlattenedComponents(boolean increaseWriterIndex, ByteBuf buffer) {
-        wrapped.addFlattenedComponents(increaseWriterIndex, buffer);
         return this;
     }
 

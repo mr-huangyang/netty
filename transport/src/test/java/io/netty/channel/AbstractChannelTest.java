@@ -15,55 +15,68 @@
  */
 package io.netty.channel;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.nio.channels.ClosedChannelException;
 
-import io.netty.util.NetUtil;
+import org.easymock.Capture;
+import org.easymock.IAnswer;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
+import static org.easymock.EasyMock.*;
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.hamcrest.CoreMatchers.*;
 
 public class AbstractChannelTest {
 
     @Test
     public void ensureInitialRegistrationFiresActive() throws Throwable {
-        EventLoop eventLoop = mock(EventLoop.class);
+        EventLoop eventLoop = createNiceMock(EventLoop.class);
         // This allows us to have a single-threaded test
-        when(eventLoop.inEventLoop()).thenReturn(true);
+        expect(eventLoop.inEventLoop()).andReturn(true).anyTimes();
 
         TestChannel channel = new TestChannel();
-        ChannelInboundHandler handler = mock(ChannelInboundHandler.class);
+        ChannelInboundHandler handler = createMock(ChannelInboundHandler.class);
+        handler.handlerAdded(anyObject(ChannelHandlerContext.class)); expectLastCall();
+        Capture<Throwable> throwable = catchHandlerExceptions(handler);
+        handler.channelRegistered(anyObject(ChannelHandlerContext.class));
+        expectLastCall().once();
+        handler.channelActive(anyObject(ChannelHandlerContext.class));
+        expectLastCall().once();
+        replay(handler, eventLoop);
         channel.pipeline().addLast(handler);
 
         registerChannel(eventLoop, channel);
 
-        verify(handler).handlerAdded(any(ChannelHandlerContext.class));
-        verify(handler).channelRegistered(any(ChannelHandlerContext.class));
-        verify(handler).channelActive(any(ChannelHandlerContext.class));
+        checkForHandlerException(throwable);
+        verify(handler);
     }
 
     @Test
     public void ensureSubsequentRegistrationDoesNotFireActive() throws Throwable {
-        final EventLoop eventLoop = mock(EventLoop.class);
+        final EventLoop eventLoop = createNiceMock(EventLoop.class);
         // This allows us to have a single-threaded test
-        when(eventLoop.inEventLoop()).thenReturn(true);
-
-        doAnswer(new Answer() {
+        expect(eventLoop.inEventLoop()).andReturn(true).anyTimes();
+        eventLoop.execute(anyObject(Runnable.class));
+        expectLastCall().andAnswer(new IAnswer<Object>() {
             @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                ((Runnable) invocationOnMock.getArgument(0)).run();
+            public Object answer() throws Throwable {
+                ((Runnable) getCurrentArguments()[0]).run();
                 return null;
             }
-        }).when(eventLoop).execute(any(Runnable.class));
+        }).once();
 
         final TestChannel channel = new TestChannel();
-        ChannelInboundHandler handler = mock(ChannelInboundHandler.class);
+        ChannelInboundHandler handler = createMock(ChannelInboundHandler.class);
+        handler.handlerAdded(anyObject(ChannelHandlerContext.class)); expectLastCall();
+        Capture<Throwable> throwable = catchHandlerExceptions(handler);
+        handler.channelRegistered(anyObject(ChannelHandlerContext.class));
+        expectLastCall().times(2); // Should register twice
+        handler.channelActive(anyObject(ChannelHandlerContext.class));
+        expectLastCall().once(); // Should only fire active once
 
+        handler.channelUnregistered(anyObject(ChannelHandlerContext.class));
+        expectLastCall().once(); // Should register twice
+
+        replay(handler, eventLoop);
         channel.pipeline().addLast(handler);
 
         registerChannel(eventLoop, channel);
@@ -71,82 +84,15 @@ public class AbstractChannelTest {
 
         registerChannel(eventLoop, channel);
 
-        verify(handler).handlerAdded(any(ChannelHandlerContext.class));
-
-        // Should register twice
-        verify(handler,  times(2)) .channelRegistered(any(ChannelHandlerContext.class));
-        verify(handler).channelActive(any(ChannelHandlerContext.class));
-        verify(handler).channelUnregistered(any(ChannelHandlerContext.class));
+        checkForHandlerException(throwable);
+        verify(handler);
     }
 
     @Test
     public void ensureDefaultChannelId() {
         TestChannel channel = new TestChannel();
         final ChannelId channelId = channel.id();
-        assertTrue(channelId instanceof DefaultChannelId);
-    }
-
-    @Test
-    public void testClosedChannelExceptionCarryIOException() throws Exception {
-        final IOException ioException = new IOException();
-        final Channel channel = new TestChannel() {
-            private boolean open = true;
-            private boolean active;
-
-            @Override
-            protected AbstractUnsafe newUnsafe() {
-                return new AbstractUnsafe() {
-                    @Override
-                    public void connect(
-                            SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) {
-                        active = true;
-                        promise.setSuccess();
-                    }
-                };
-            }
-
-            @Override
-            protected void doClose()  {
-                active = false;
-                open = false;
-            }
-
-            @Override
-            protected void doWrite(ChannelOutboundBuffer in) throws Exception {
-                throw ioException;
-            }
-
-            @Override
-            public boolean isOpen() {
-                return open;
-            }
-
-            @Override
-            public boolean isActive() {
-                return active;
-            }
-        };
-
-        EventLoop loop = new DefaultEventLoop();
-        try {
-            registerChannel(loop, channel);
-            channel.connect(new InetSocketAddress(NetUtil.LOCALHOST, 8888)).sync();
-            assertSame(ioException, channel.writeAndFlush("").await().cause());
-
-            assertClosedChannelException(channel.writeAndFlush(""), ioException);
-            assertClosedChannelException(channel.write(""), ioException);
-            assertClosedChannelException(channel.bind(new InetSocketAddress(NetUtil.LOCALHOST, 8888)), ioException);
-        } finally {
-            channel.close();
-            loop.shutdownGracefully();
-        }
-    }
-
-    private static void assertClosedChannelException(ChannelFuture future, IOException expected)
-            throws InterruptedException {
-        Throwable cause = future.await().cause();
-        assertTrue(cause instanceof ClosedChannelException);
-        assertSame(expected, cause.getCause());
+        assertThat(channelId, instanceOf(DefaultChannelId.class));
     }
 
     private static void registerChannel(EventLoop eventLoop, Channel channel) throws Exception {
@@ -155,18 +101,34 @@ public class AbstractChannelTest {
         future.sync(); // Cause any exceptions to be thrown
     }
 
+    private static Capture<Throwable> catchHandlerExceptions(ChannelInboundHandler handler) throws Exception {
+        Capture<Throwable> throwable = new Capture<Throwable>();
+        handler.exceptionCaught(anyObject(ChannelHandlerContext.class), capture(throwable));
+        expectLastCall().anyTimes();
+        return throwable;
+    }
+
+    private static void checkForHandlerException(Capture<Throwable> throwable) throws Throwable {
+        if (throwable.hasCaptured()) {
+            throw throwable.getValue();
+        }
+    }
+
     private static class TestChannel extends AbstractChannel {
         private static final ChannelMetadata TEST_METADATA = new ChannelMetadata(false);
+        private class TestUnsafe extends AbstractUnsafe {
 
-        private final ChannelConfig config = new DefaultChannelConfig(this);
+            @Override
+            public void connect(SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) { }
+        }
 
-        TestChannel() {
+        public TestChannel() {
             super(null);
         }
 
         @Override
         public ChannelConfig config() {
-            return config;
+            return new DefaultChannelConfig(this);
         }
 
         @Override
@@ -186,12 +148,7 @@ public class AbstractChannelTest {
 
         @Override
         protected AbstractUnsafe newUnsafe() {
-            return new AbstractUnsafe() {
-                @Override
-                public void connect(SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) {
-                    promise.setFailure(new UnsupportedOperationException());
-                }
-            };
+            return new TestUnsafe();
         }
 
         @Override
@@ -210,16 +167,16 @@ public class AbstractChannelTest {
         }
 
         @Override
-        protected void doBind(SocketAddress localAddress) { }
+        protected void doBind(SocketAddress localAddress) throws Exception { }
 
         @Override
-        protected void doDisconnect() { }
+        protected void doDisconnect() throws Exception { }
 
         @Override
-        protected void doClose() { }
+        protected void doClose() throws Exception { }
 
         @Override
-        protected void doBeginRead() { }
+        protected void doBeginRead() throws Exception { }
 
         @Override
         protected void doWrite(ChannelOutboundBuffer in) throws Exception { }

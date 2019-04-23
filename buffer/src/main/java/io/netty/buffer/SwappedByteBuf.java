@@ -69,7 +69,7 @@ public class SwappedByteBuf extends ByteBuf {
 
     @Override
     public ByteBuf unwrap() {
-        return buf;
+        return buf.unwrap();
     }
 
     @Override
@@ -995,11 +995,6 @@ public class SwappedByteBuf extends ByteBuf {
     @Override
     public int refCnt() {
         return buf.refCnt();
-    }
-
-    @Override
-    final boolean isAccessible() {
-        return buf.isAccessible();
     }
 
     @Override

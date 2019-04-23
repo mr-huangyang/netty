@@ -131,7 +131,7 @@ public class DefaultThreadFactoryTest {
     // test that when DefaultThreadFactory is constructed it is sticky to the thread group from the thread group of the
     // thread that created it
     @Test(timeout = 2000)
-    public void testDefaultThreadFactoryInheritsThreadGroup() throws InterruptedException {
+    public void testDefaulThreadFactoryInheritsThreadGroup() throws InterruptedException {
         final ThreadGroup sticky = new ThreadGroup("sticky");
 
         runStickyThreadGroupTest(
@@ -186,7 +186,7 @@ public class DefaultThreadFactoryTest {
         }
     }
 
-    private static void runStickyThreadGroupTest(
+    private void runStickyThreadGroupTest(
             final Callable<DefaultThreadFactory> callable,
             final ThreadGroup expected) throws InterruptedException {
         final AtomicReference<ThreadGroup> captured = new AtomicReference<ThreadGroup>();

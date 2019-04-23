@@ -16,7 +16,6 @@
 package io.netty.resolver.dns;
 
 import io.netty.channel.EventLoop;
-import io.netty.handler.codec.dns.DnsRecord;
 import io.netty.util.internal.UnstableApi;
 
 import java.net.InetAddress;
@@ -47,46 +46,20 @@ public final class NoopDnsCache implements DnsCache {
     }
 
     @Override
-    public List<? extends DnsCacheEntry> get(String hostname, DnsRecord[] additionals) {
+    public List<DnsCacheEntry> get(String hostname) {
         return Collections.emptyList();
     }
 
     @Override
-    public DnsCacheEntry cache(String hostname, DnsRecord[] additional,
-                               InetAddress address, long originalTtl, EventLoop loop) {
-        return new NoopDnsCacheEntry(address);
+    public void cache(String hostname, InetAddress address, long originalTtl, EventLoop loop) {
     }
 
     @Override
-    public DnsCacheEntry cache(String hostname, DnsRecord[] additional, Throwable cause, EventLoop loop) {
-        return null;
+    public void cache(String hostname, Throwable cause, EventLoop loop) {
     }
 
     @Override
     public String toString() {
         return NoopDnsCache.class.getSimpleName();
-    }
-
-    private static final class NoopDnsCacheEntry implements DnsCacheEntry {
-        private final InetAddress address;
-
-        NoopDnsCacheEntry(InetAddress address) {
-            this.address = address;
-        }
-
-        @Override
-        public InetAddress address() {
-            return address;
-        }
-
-        @Override
-        public Throwable cause() {
-            return null;
-        }
-
-        @Override
-        public String toString() {
-            return address.toString();
-        }
     }
 }

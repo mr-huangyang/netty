@@ -15,8 +15,6 @@
  */
 package io.netty.channel;
 
-import static io.netty.util.internal.ObjectUtil.checkPositive;
-
 /**
  * The {@link RecvByteBufAllocator} that always yields the same buffer
  * size prediction.  This predictor ignores the feed back from the I/O thread.
@@ -28,7 +26,7 @@ public class FixedRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufAllo
     private final class HandleImpl extends MaxMessageHandle {
         private final int bufferSize;
 
-        HandleImpl(int bufferSize) {
+        public HandleImpl(int bufferSize) {
             this.bufferSize = bufferSize;
         }
 
@@ -43,19 +41,15 @@ public class FixedRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufAllo
      * the specified buffer size.
      */
     public FixedRecvByteBufAllocator(int bufferSize) {
-        checkPositive(bufferSize, "bufferSize");
+        if (bufferSize <= 0) {
+            throw new IllegalArgumentException(
+                    "bufferSize must greater than 0: " + bufferSize);
+        }
         this.bufferSize = bufferSize;
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public Handle newHandle() {
         return new HandleImpl(bufferSize);
-    }
-
-    @Override
-    public FixedRecvByteBufAllocator respectMaybeMoreData(boolean respectMaybeMoreData) {
-        super.respectMaybeMoreData(respectMaybeMoreData);
-        return this;
     }
 }

@@ -15,8 +15,6 @@
  */
 package io.netty.handler.codec.http;
 
-import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
-
 /**
  * A <a href="http://tools.ietf.org/html/rfc6265">RFC6265</a> compliant cookie encoder to be used client side,
  * so only name=value pairs are sent.

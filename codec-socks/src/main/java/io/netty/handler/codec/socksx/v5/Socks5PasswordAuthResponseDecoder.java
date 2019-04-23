@@ -73,7 +73,7 @@ public class Socks5PasswordAuthResponseDecoder extends ReplayingDecoder<State> {
         }
     }
 
-    private void fail(List<Object> out, Exception cause) {
+    private void fail(List<Object> out, Throwable cause) {
         if (!(cause instanceof DecoderException)) {
             cause = new DecoderException(cause);
         }

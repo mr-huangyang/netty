@@ -26,7 +26,6 @@ import io.netty.channel.ChannelPromise;
 import io.netty.channel.DefaultChannelPromise;
 import io.netty.util.AsciiString;
 import io.netty.util.concurrent.EventExecutor;
-import io.netty.util.concurrent.GlobalEventExecutor;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,22 +39,19 @@ import java.util.LinkedList;
 import java.util.List;
 
 import static io.netty.buffer.Unpooled.EMPTY_BUFFER;
-import static io.netty.handler.codec.http2.Http2CodecUtil.MAX_PADDING;
-import static io.netty.handler.codec.http2.Http2HeadersEncoder.NEVER_SENSITIVE;
-import static io.netty.handler.codec.http2.Http2TestUtil.newTestDecoder;
-import static io.netty.handler.codec.http2.Http2TestUtil.newTestEncoder;
+import static io.netty.handler.codec.http2.Http2CodecUtil.*;
 import static io.netty.handler.codec.http2.Http2TestUtil.randomString;
 import static io.netty.util.CharsetUtil.UTF_8;
 import static java.lang.Math.min;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyBoolean;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.anyShort;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.isA;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyShort;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
@@ -88,7 +84,7 @@ public class Http2FrameRoundtripTest {
 
     private Http2FrameWriter writer;
     private Http2FrameReader reader;
-    private final List<ByteBuf> needReleasing = new LinkedList<ByteBuf>();
+    private List<ByteBuf> needReleasing = new LinkedList<ByteBuf>();
 
     @Before
     public void setup() throws Exception {
@@ -112,12 +108,12 @@ public class Http2FrameRoundtripTest {
         doAnswer(new Answer<ChannelPromise>() {
             @Override
             public ChannelPromise answer(InvocationOnMock invocation) throws Throwable {
-                return new DefaultChannelPromise(channel, GlobalEventExecutor.INSTANCE);
+                return new DefaultChannelPromise(channel);
             }
         }).when(ctx).newPromise();
 
-        writer = new DefaultHttp2FrameWriter(new DefaultHttp2HeadersEncoder(NEVER_SENSITIVE, newTestEncoder()));
-        reader = new DefaultHttp2FrameReader(new DefaultHttp2HeadersDecoder(false, newTestDecoder()));
+        writer = new DefaultHttp2FrameWriter();
+        reader = new DefaultHttp2FrameReader(false);
     }
 
     @After
@@ -281,10 +277,7 @@ public class Http2FrameRoundtripTest {
 
     @Test
     public void headersThatAreTooBigShouldFail() throws Exception {
-        reader = new DefaultHttp2FrameReader(false);
-        final int maxListSize = 100;
-        reader.configuration().headersConfiguration().maxHeaderListSize(maxListSize, maxListSize);
-        final Http2Headers headers = headersOfSize(maxListSize + 1);
+        final Http2Headers headers = headersOfSize(DEFAULT_MAX_HEADER_SIZE + 1);
         writer.writeHeaders(ctx, STREAM_ID, headers, 2, (short) 3, true, MAX_PADDING, true, ctx.newPromise());
         try {
             readFrames();
@@ -351,22 +344,26 @@ public class Http2FrameRoundtripTest {
 
     @Test
     public void pingFrameShouldMatch() throws Exception {
-        writer.writePing(ctx, false, 1234567, ctx.newPromise());
+        final ByteBuf data = buf("01234567".getBytes(UTF_8));
+
+        writer.writePing(ctx, false, data.slice(), ctx.newPromise());
         readFrames();
 
-        ArgumentCaptor<Long> captor = ArgumentCaptor.forClass(long.class);
+        ArgumentCaptor<ByteBuf> captor = ArgumentCaptor.forClass(ByteBuf.class);
         verify(listener).onPingRead(eq(ctx), captor.capture());
-        assertEquals(1234567, (long) captor.getValue());
+        assertEquals(data, captor.getValue());
     }
 
     @Test
     public void pingAckFrameShouldMatch() throws Exception {
-        writer.writePing(ctx, true, 1234567, ctx.newPromise());
+        final ByteBuf data = buf("01234567".getBytes(UTF_8));
+
+        writer.writePing(ctx, true, data.slice(), ctx.newPromise());
         readFrames();
 
-        ArgumentCaptor<Long> captor = ArgumentCaptor.forClass(long.class);
+        ArgumentCaptor<ByteBuf> captor = ArgumentCaptor.forClass(ByteBuf.class);
         verify(listener).onPingAckRead(eq(ctx), captor.capture());
-        assertEquals(1234567, (long) captor.getValue());
+        assertEquals(data, captor.getValue());
     }
 
     @Test
@@ -424,7 +421,7 @@ public class Http2FrameRoundtripTest {
         reader.readFrame(ctx, write, listener);
     }
 
-    private static ByteBuf data(int size) {
+    private ByteBuf data(int size) {
         byte[] data = new byte[size];
         for (int ix = 0; ix < data.length;) {
             int length = min(MESSAGE.length, data.length - ix);
@@ -434,7 +431,7 @@ public class Http2FrameRoundtripTest {
         return buf(data);
     }
 
-    private static ByteBuf buf(byte[] bytes) {
+    private ByteBuf buf(byte[] bytes) {
         return Unpooled.wrappedBuffer(bytes);
     }
 
@@ -470,7 +467,7 @@ public class Http2FrameRoundtripTest {
         return headers;
     }
 
-    private static Http2Headers headersOfSize(final int minSize) {
+    private Http2Headers headersOfSize(final int minSize) {
         final AsciiString singleByte = new AsciiString(new byte[]{0}, false);
         DefaultHttp2Headers headers = new DefaultHttp2Headers(false);
         for (int size = 0; size < minSize; size += 2) {

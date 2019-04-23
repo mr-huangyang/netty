@@ -15,8 +15,7 @@
  */
 package io.netty.handler.codec;
 
-import io.netty.util.concurrent.FastThreadLocal;
-import io.netty.util.internal.MathUtil;
+import io.netty.util.Recycler;
 
 import java.util.AbstractList;
 import java.util.RandomAccess;
@@ -28,80 +27,25 @@ import static io.netty.util.internal.ObjectUtil.checkNotNull;
  */
 final class CodecOutputList extends AbstractList<Object> implements RandomAccess {
 
-    private static final CodecOutputListRecycler NOOP_RECYCLER = new CodecOutputListRecycler() {
+    private static final Recycler<CodecOutputList> RECYCLER = new Recycler<CodecOutputList>() {
         @Override
-        public void recycle(CodecOutputList object) {
-            // drop on the floor and let the GC handle it.
+        protected CodecOutputList newObject(Handle<CodecOutputList> handle) {
+            return new CodecOutputList(handle);
         }
     };
 
-    private static final FastThreadLocal<CodecOutputLists> CODEC_OUTPUT_LISTS_POOL =
-            new FastThreadLocal<CodecOutputLists>() {
-                @Override
-                protected CodecOutputLists initialValue() throws Exception {
-                    // 16 CodecOutputList per Thread are cached.
-                    return new CodecOutputLists(16);
-                }
-            };
-
-    private interface CodecOutputListRecycler {
-        void recycle(CodecOutputList codecOutputList);
-    }
-
-    private static final class CodecOutputLists implements CodecOutputListRecycler {
-        private final CodecOutputList[] elements;
-        private final int mask;
-
-        private int currentIdx;
-        private int count;
-
-        CodecOutputLists(int numElements) {
-            elements = new CodecOutputList[MathUtil.safeFindNextPositivePowerOfTwo(numElements)];
-            for (int i = 0; i < elements.length; ++i) {
-                // Size of 16 should be good enough for the majority of all users as an initial capacity.
-                elements[i] = new CodecOutputList(this, 16);
-            }
-            count = elements.length;
-            currentIdx = elements.length;
-            mask = elements.length - 1;
-        }
-
-        public CodecOutputList getOrCreate() {
-            if (count == 0) {
-                // Return a new CodecOutputList which will not be cached. We use a size of 4 to keep the overhead
-                // low.
-                return new CodecOutputList(NOOP_RECYCLER, 4);
-            }
-            --count;
-
-            int idx = (currentIdx - 1) & mask;
-            CodecOutputList list = elements[idx];
-            currentIdx = idx;
-            return list;
-        }
-
-        @Override
-        public void recycle(CodecOutputList codecOutputList) {
-            int idx = currentIdx;
-            elements[idx] = codecOutputList;
-            currentIdx = (idx + 1) & mask;
-            ++count;
-            assert count <= elements.length;
-        }
-    }
-
     static CodecOutputList newInstance() {
-        return CODEC_OUTPUT_LISTS_POOL.get().getOrCreate();
+        return RECYCLER.get();
     }
 
-    private final CodecOutputListRecycler recycler;
+    private final Recycler.Handle<CodecOutputList> handle;
     private int size;
-    private Object[] array;
+    // Size of 16 should be good enough for 99 % of all users.
+    private Object[] array = new Object[16];
     private boolean insertSinceRecycled;
 
-    private CodecOutputList(CodecOutputListRecycler recycler, int size) {
-        this.recycler = recycler;
-        array = new Object[size];
+    private CodecOutputList(Recycler.Handle<CodecOutputList> handle) {
+        this.handle = handle;
     }
 
     @Override
@@ -148,7 +92,7 @@ final class CodecOutputList extends AbstractList<Object> implements RandomAccess
             expandArray();
         }
 
-        if (index != size) {
+        if (index != size - 1) {
             System.arraycopy(array, index, array, index + 1, size - index);
         }
 
@@ -191,10 +135,9 @@ final class CodecOutputList extends AbstractList<Object> implements RandomAccess
         for (int i = 0 ; i < size; i ++) {
             array[i] = null;
         }
-        size = 0;
+        clear();
         insertSinceRecycled = false;
-
-        recycler.recycle(this);
+        handle.recycle(this);
     }
 
     /**

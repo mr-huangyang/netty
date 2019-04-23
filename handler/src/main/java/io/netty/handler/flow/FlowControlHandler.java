@@ -18,10 +18,13 @@ package io.netty.handler.flow;
 import java.util.ArrayDeque;
 import java.util.Queue;
 
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelConfig;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.util.Recycler;
@@ -40,17 +43,17 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
  * {@code HttpObjectDecoder} that will very often fire a {@code HttpRequest} that is immediately followed
  * by a {@code LastHttpContent} event.
  *
- * <pre>{@code
- * ChannelPipeline pipeline = ...;
+ * <pre>
+ * {@link ChannelPipeline} pipeline = ...;
  *
  * pipeline.addLast(new HttpServerCodec());
- * pipeline.addLast(new FlowControlHandler());
+ * pipeline.addLast(new {@link FlowControlHandler}());
  *
  * pipeline.addLast(new MyExampleHandler());
  *
- * class MyExampleHandler extends ChannelInboundHandlerAdapter {
+ * class MyExampleHandler extends {@link ChannelInboundHandlerAdapter} {
  *   @Override
- *   public void channelRead(ChannelHandlerContext ctx, Object msg) {
+ *   public void channelRead({@link ChannelHandlerContext} ctx, Object msg) {
  *     if (msg instanceof HttpRequest) {
  *       ctx.channel().config().setAutoRead(false);
  *
@@ -60,7 +63,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
  *     }
  *   }
  * }
- * }</pre>
+ * </pre>
  *
  * @see ChannelConfig#setAutoRead(boolean)
  */

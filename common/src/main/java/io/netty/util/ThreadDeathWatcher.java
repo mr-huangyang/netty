@@ -17,17 +17,15 @@
 package io.netty.util;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.netty.util.internal.PlatformDependent;
 import io.netty.util.internal.StringUtil;
 import io.netty.util.internal.SystemPropertyUtil;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -39,19 +37,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * associated {@link Runnable}s.  When there is no thread to watch (i.e. all threads are dead), the daemon thread
  * will terminate itself, and a new daemon thread will be started again when a new watch is added.
  * </p>
- *
- * @deprecated will be removed in the next major release
  */
-@Deprecated
 public final class ThreadDeathWatcher {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(ThreadDeathWatcher.class);
     // visible for testing
     static final ThreadFactory threadFactory;
 
-    // Use a MPMC queue as we may end up checking isEmpty() from multiple threads which may not be allowed to do
-    // concurrently depending on the implementation of it in a MPSC queue.
-    private static final Queue<Entry> pendingEntries = new ConcurrentLinkedQueue<Entry>();
+    private static final Queue<Entry> pendingEntries = PlatformDependent.newMpscQueue();
     private static final Watcher watcher = new Watcher();
     private static final AtomicBoolean started = new AtomicBoolean();
     private static volatile Thread watcherThread;
@@ -108,20 +101,7 @@ public final class ThreadDeathWatcher {
         pendingEntries.add(new Entry(thread, task, isWatch));
 
         if (started.compareAndSet(false, true)) {
-            final Thread watcherThread = threadFactory.newThread(watcher);
-            // Set to null to ensure we not create classloader leaks by holds a strong reference to the inherited
-            // classloader.
-            // See:
-            // - https://github.com/netty/netty/issues/7290
-            // - https://bugs.openjdk.java.net/browse/JDK-7008595
-            AccessController.doPrivileged(new PrivilegedAction<Void>() {
-                @Override
-                public Void run() {
-                    watcherThread.setContextClassLoader(null);
-                    return null;
-                }
-            });
-
+            Thread watcherThread = threadFactory.newThread(watcher);
             watcherThread.start();
             ThreadDeathWatcher.watcherThread = watcherThread;
         }

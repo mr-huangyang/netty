@@ -19,13 +19,11 @@ import io.netty.microbench.util.AbstractMicrobenchmark;
 import io.netty.util.internal.PlatformDependent;
 
 import java.util.Arrays;
-import java.util.concurrent.TimeUnit;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Mode;
-import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
@@ -51,15 +49,13 @@ public class PlatformDependentBenchmark extends AbstractMicrobenchmark {
     }
 
     @Benchmark
-    @BenchmarkMode(Mode.AverageTime)
-    @OutputTimeUnit(TimeUnit.NANOSECONDS)
+    @BenchmarkMode(Mode.Throughput)
     public boolean unsafeBytesEqual() {
         return PlatformDependent.equals(bytes1, 0, bytes2, 0, bytes1.length);
     }
 
     @Benchmark
-    @BenchmarkMode(Mode.AverageTime)
-    @OutputTimeUnit(TimeUnit.NANOSECONDS)
+    @BenchmarkMode(Mode.Throughput)
     public boolean arraysBytesEqual() {
         return Arrays.equals(bytes1, bytes2);
     }

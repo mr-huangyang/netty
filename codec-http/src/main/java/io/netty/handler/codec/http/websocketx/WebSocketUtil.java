@@ -20,7 +20,6 @@ import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.base64.Base64;
 import io.netty.util.CharsetUtil;
 import io.netty.util.concurrent.FastThreadLocal;
-import io.netty.util.internal.PlatformDependent;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -106,7 +105,11 @@ final class WebSocketUtil {
      */
     static byte[] randomBytes(int size) {
         byte[] bytes = new byte[size];
-        PlatformDependent.threadLocalRandom().nextBytes(bytes);
+
+        for (int index = 0; index < size; index++) {
+            bytes[index] = (byte) randomNumber(0, 255);
+        }
+
         return bytes;
     }
 
@@ -118,29 +121,7 @@ final class WebSocketUtil {
      * @return A pseudo-random number
      */
     static int randomNumber(int minimum, int maximum) {
-        assert minimum < maximum;
-        double fraction = PlatformDependent.threadLocalRandom().nextDouble();
-
-        // the idea here is that nextDouble gives us a random value
-        //
-        //              0 <= fraction <= 1
-        //
-        // the distance from min to max declared as
-        //
-        //              dist = max - min
-        //
-        // satisfies the following
-        //
-        //              min + dist = max
-        //
-        // taking into account
-        //
-        //         0 <= fraction * dist <= dist
-        //
-        // we've got
-        //
-        //       min <= min + fraction * dist <= max
-        return (int) (minimum + fraction * (maximum - minimum));
+        return (int) (Math.random() * maximum + minimum);
     }
 
     /**

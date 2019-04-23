@@ -33,7 +33,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-public abstract class AbstractCompatibleMarshallingDecoderTest extends AbstractMarshallingTest {
+public abstract class AbstractCompatibleMarshallingDecoderTest {
     @SuppressWarnings("RedundantStringConstructorCall")
     private final String testObject = new String("test");
 

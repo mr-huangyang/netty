@@ -23,15 +23,13 @@ import org.junit.Before;
 public class BigEndianUnsafeNoCleanerDirectByteBufTest extends BigEndianDirectByteBufTest {
 
     @Before
-    @Override
-    public void init() {
+    public void checkHasUnsafe() {
         Assume.assumeTrue("java.nio.DirectByteBuffer.<init>(long, int) not found, skip tests",
                 PlatformDependent.useDirectBufferNoCleaner());
-        super.init();
     }
 
     @Override
-    protected ByteBuf newBuffer(int length, int maxCapacity) {
-        return new UnpooledUnsafeNoCleanerDirectByteBuf(UnpooledByteBufAllocator.DEFAULT, length, maxCapacity);
+    protected ByteBuf newBuffer(int length) {
+        return new UnpooledUnsafeNoCleanerDirectByteBuf(UnpooledByteBufAllocator.DEFAULT, length, Integer.MAX_VALUE);
     }
 }

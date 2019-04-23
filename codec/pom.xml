@@ -20,7 +20,7 @@
   <parent>
     <groupId>io.netty</groupId>
     <artifactId>netty-parent</artifactId>
-    <version>4.1.36.Final-SNAPSHOT</version>
+    <version>4.1.5.Final</version>
   </parent>
 
   <artifactId>netty-codec</artifactId>
@@ -28,21 +28,7 @@
 
   <name>Netty/Codec</name>
 
-  <properties>
-    <javaModuleName>io.netty.codec</javaModuleName>
-  </properties>
-
   <dependencies>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-common</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-buffer</artifactId>
-      <version>${project.version}</version>
-    </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>netty-transport</artifactId>
@@ -82,11 +68,6 @@
       <groupId>com.github.jponge</groupId>
       <artifactId>lzma-java</artifactId>
       <optional>true</optional>
-    </dependency>
-
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
     </dependency>
 
     <!-- Test dependencies for jboss marshalling encoder/decoder -->

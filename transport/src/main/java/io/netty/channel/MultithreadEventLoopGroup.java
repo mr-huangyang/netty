@@ -15,7 +15,6 @@
  */
 package io.netty.channel;
 
-import io.netty.util.NettyRuntime;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.EventExecutorChooserFactory;
 import io.netty.util.concurrent.MultithreadEventExecutorGroup;
@@ -29,6 +28,11 @@ import java.util.concurrent.ThreadFactory;
 /**
  * Abstract base class for {@link EventLoopGroup} implementations that handles their tasks with multiple threads at
  * the same time.
+ * <br/>
+ * a: 设置了具体的管理的EventExecutor数量
+ * <br/>
+ * b: 将register方法委托到某个子类
+ *
  */
 public abstract class MultithreadEventLoopGroup extends MultithreadEventExecutorGroup implements EventLoopGroup {
 
@@ -38,7 +42,7 @@ public abstract class MultithreadEventLoopGroup extends MultithreadEventExecutor
 
     static {
         DEFAULT_EVENT_LOOP_THREADS = Math.max(1, SystemPropertyUtil.getInt(
-                "io.netty.eventLoopThreads", NettyRuntime.availableProcessors() * 2));
+                "io.netty.eventLoopThreads", Runtime.getRuntime().availableProcessors() * 2));
 
         if (logger.isDebugEnabled()) {
             logger.debug("-Dio.netty.eventLoopThreads: {}", DEFAULT_EVENT_LOOP_THREADS);
@@ -46,22 +50,22 @@ public abstract class MultithreadEventLoopGroup extends MultithreadEventExecutor
     }
 
     /**
-     * @see MultithreadEventExecutorGroup#MultithreadEventExecutorGroup(int, Executor, Object...)
+     * @see {@link MultithreadEventExecutorGroup#MultithreadEventExecutorGroup(int, Executor, Object...)}
      */
     protected MultithreadEventLoopGroup(int nThreads, Executor executor, Object... args) {
         super(nThreads == 0 ? DEFAULT_EVENT_LOOP_THREADS : nThreads, executor, args);
     }
 
     /**
-     * @see MultithreadEventExecutorGroup#MultithreadEventExecutorGroup(int, ThreadFactory, Object...)
+     * @see {@link MultithreadEventExecutorGroup#MultithreadEventExecutorGroup(int, ThreadFactory, Object...)}
      */
     protected MultithreadEventLoopGroup(int nThreads, ThreadFactory threadFactory, Object... args) {
         super(nThreads == 0 ? DEFAULT_EVENT_LOOP_THREADS : nThreads, threadFactory, args);
     }
 
     /**
-     * @see MultithreadEventExecutorGroup#MultithreadEventExecutorGroup(int, Executor,
-     * EventExecutorChooserFactory, Object...)
+     * @see {@link MultithreadEventExecutorGroup#MultithreadEventExecutorGroup(int, Executor,
+     * EventExecutorChooserFactory, Object...)}
      */
     protected MultithreadEventLoopGroup(int nThreads, Executor executor, EventExecutorChooserFactory chooserFactory,
                                      Object... args) {

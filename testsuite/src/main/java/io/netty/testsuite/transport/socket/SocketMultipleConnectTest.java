@@ -22,7 +22,6 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.testsuite.transport.TestsuitePermutation;
-import io.netty.util.NetUtil;
 import org.junit.Test;
 
 import java.nio.channels.AlreadyConnectedException;
@@ -43,7 +42,7 @@ public class SocketMultipleConnectTest extends AbstractSocketTest {
         Channel cc = null;
         try {
             sb.childHandler(new ChannelInboundHandlerAdapter());
-            sc = sb.bind(NetUtil.LOCALHOST, 0).syncUninterruptibly().channel();
+            sc = sb.bind(0).syncUninterruptibly().channel();
 
             cb.handler(new ChannelInboundHandlerAdapter());
             cc = cb.register().syncUninterruptibly().channel();

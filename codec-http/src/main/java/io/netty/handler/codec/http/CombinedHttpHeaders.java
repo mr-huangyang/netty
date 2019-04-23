@@ -16,9 +16,9 @@
 package io.netty.handler.codec.http;
 
 import io.netty.handler.codec.DefaultHeaders;
-import io.netty.handler.codec.Headers;
 import io.netty.handler.codec.ValueConverter;
 import io.netty.util.HashingStrategy;
+import io.netty.handler.codec.Headers;
 import io.netty.util.internal.StringUtil;
 
 import java.util.Collection;
@@ -26,10 +26,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static io.netty.handler.codec.http.HttpHeaderNames.SET_COOKIE;
 import static io.netty.util.AsciiString.CASE_INSENSITIVE_HASHER;
 import static io.netty.util.internal.StringUtil.COMMA;
-import static io.netty.util.internal.StringUtil.unescapeCsvFields;
 
 /**
  * Will add multiple values for the same header as single header with a comma separated list of values.
@@ -39,11 +37,6 @@ import static io.netty.util.internal.StringUtil.unescapeCsvFields;
 public class CombinedHttpHeaders extends DefaultHttpHeaders {
     public CombinedHttpHeaders(boolean validate) {
         super(new CombinedHttpHeadersImpl(CASE_INSENSITIVE_HASHER, valueConverter(validate), nameValidator(validate)));
-    }
-
-    @Override
-    public boolean containsValue(CharSequence name, CharSequence value, boolean ignoreCase) {
-        return super.containsValue(name, StringUtil.trimOws(value), ignoreCase);
     }
 
     private static final class CombinedHttpHeadersImpl
@@ -60,7 +53,7 @@ public class CombinedHttpHeaders extends DefaultHttpHeaders {
                 objectEscaper = new CsvValueEscaper<Object>() {
                     @Override
                     public CharSequence escape(Object value) {
-                        return StringUtil.escapeCsv(valueConverter().convertObject(value), true);
+                        return StringUtil.escapeCsv(valueConverter().convertObject(value));
                     }
                 };
             }
@@ -72,42 +65,29 @@ public class CombinedHttpHeaders extends DefaultHttpHeaders {
                 charSequenceEscaper = new CsvValueEscaper<CharSequence>() {
                     @Override
                     public CharSequence escape(CharSequence value) {
-                        return StringUtil.escapeCsv(value, true);
+                        return StringUtil.escapeCsv(value);
                     }
                 };
             }
             return charSequenceEscaper;
         }
 
-        CombinedHttpHeadersImpl(HashingStrategy<CharSequence> nameHashingStrategy,
+        public CombinedHttpHeadersImpl(HashingStrategy<CharSequence> nameHashingStrategy,
                 ValueConverter<CharSequence> valueConverter,
                 io.netty.handler.codec.DefaultHeaders.NameValidator<CharSequence> nameValidator) {
             super(nameHashingStrategy, valueConverter, nameValidator);
         }
 
         @Override
-        public Iterator<CharSequence> valueIterator(CharSequence name) {
-            Iterator<CharSequence> itr = super.valueIterator(name);
-            if (!itr.hasNext() || cannotBeCombined(name)) {
-                return itr;
-            }
-            Iterator<CharSequence> unescapedItr = unescapeCsvFields(itr.next()).iterator();
-            if (itr.hasNext()) {
-                throw new IllegalStateException("CombinedHttpHeaders should only have one value");
-            }
-            return unescapedItr;
-        }
-
-        @Override
         public List<CharSequence> getAll(CharSequence name) {
             List<CharSequence> values = super.getAll(name);
-            if (values.isEmpty() || cannotBeCombined(name)) {
+            if (values.isEmpty()) {
                 return values;
             }
             if (values.size() != 1) {
                 throw new IllegalStateException("CombinedHttpHeaders should only have one value");
             }
-            return unescapeCsvFields(values.get(0));
+            return StringUtil.unescapeCsvFields(values.get(0));
         }
 
         @Override
@@ -156,7 +136,7 @@ public class CombinedHttpHeaders extends DefaultHttpHeaders {
 
         @Override
         public CombinedHttpHeadersImpl add(CharSequence name, CharSequence value) {
-            return addEscapedValue(name, charSequenceEscaper().escape(value));
+            return addEscapedValue(name, StringUtil.escapeCsv(value));
         }
 
         @Override
@@ -167,11 +147,6 @@ public class CombinedHttpHeaders extends DefaultHttpHeaders {
         @Override
         public CombinedHttpHeadersImpl add(CharSequence name, Iterable<? extends CharSequence> values) {
             return addEscapedValue(name, commaSeparate(charSequenceEscaper(), values));
-        }
-
-        @Override
-        public CombinedHttpHeadersImpl addObject(CharSequence name, Object value) {
-            return addEscapedValue(name, commaSeparate(objectEscaper(), value));
         }
 
         @Override
@@ -214,13 +189,9 @@ public class CombinedHttpHeaders extends DefaultHttpHeaders {
             return this;
         }
 
-        private static boolean cannotBeCombined(CharSequence name) {
-            return SET_COOKIE.contentEqualsIgnoreCase(name);
-        }
-
         private CombinedHttpHeadersImpl addEscapedValue(CharSequence name, CharSequence escapedValue) {
             CharSequence currentValue = super.get(name);
-            if (currentValue == null || cannotBeCombined(name)) {
+            if (currentValue == null) {
                 super.add(name, escapedValue);
             } else {
                 super.set(name, commaSeparateEscapedValues(currentValue, escapedValue));
@@ -256,7 +227,7 @@ public class CombinedHttpHeaders extends DefaultHttpHeaders {
             return sb;
         }
 
-        private static CharSequence commaSeparateEscapedValues(CharSequence currentValue, CharSequence value) {
+        private CharSequence commaSeparateEscapedValues(CharSequence currentValue, CharSequence value) {
             return new StringBuilder(currentValue.length() + 1 + value.length())
                     .append(currentValue)
                     .append(COMMA)

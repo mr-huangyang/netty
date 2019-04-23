@@ -31,10 +31,11 @@ import java.util.RandomAccess;
  */
 @UnstableApi
 public final class SmtpRequestEncoder extends MessageToMessageEncoder<Object> {
-    private static final int CRLF_SHORT = ('\r' << 8) | '\n';
+    private static final byte[] CRLF = {'\r', '\n'};
+    private static final byte[] DOT_CRLF = {'.', '\r', '\n'};
     private static final byte SP = ' ';
     private static final ByteBuf DOT_CRLF_BUFFER = Unpooled.unreleasableBuffer(
-            Unpooled.directBuffer(3).writeByte('.').writeByte('\r').writeByte('\n'));
+            Unpooled.directBuffer(3).writeBytes(DOT_CRLF));
 
     private boolean contentExpected;
 
@@ -46,20 +47,16 @@ public final class SmtpRequestEncoder extends MessageToMessageEncoder<Object> {
     @Override
     protected void encode(ChannelHandlerContext ctx, Object msg, List<Object> out) throws Exception {
         if (msg instanceof SmtpRequest) {
-            final SmtpRequest req = (SmtpRequest) msg;
             if (contentExpected) {
-                if (req.command().equals(SmtpCommand.RSET)) {
-                    contentExpected = false;
-                } else {
-                    throw new IllegalStateException("SmtpContent expected");
-                }
+                throw new IllegalStateException("SmtpContent expected");
             }
             boolean release = true;
             final ByteBuf buffer = ctx.alloc().buffer();
             try {
+                final SmtpRequest req = (SmtpRequest) msg;
                 req.command().encode(buffer);
                 writeParameters(req.parameters(), buffer);
-                ByteBufUtil.writeShortBE(buffer, CRLF_SHORT);
+                buffer.writeBytes(CRLF);
                 out.add(buffer);
                 release = false;
                 if (req.command().isContentExpected()) {

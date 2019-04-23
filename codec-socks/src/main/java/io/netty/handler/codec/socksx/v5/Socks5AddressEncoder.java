@@ -41,9 +41,11 @@ public interface Socks5AddressEncoder {
                 }
             } else if (typeVal == Socks5AddressType.DOMAIN.byteValue()) {
                 if (addrValue != null) {
-                    out.writeByte(addrValue.length());
-                    out.writeCharSequence(addrValue, CharsetUtil.US_ASCII);
+                    byte[] bndAddr = addrValue.getBytes(CharsetUtil.US_ASCII);
+                    out.writeByte(bndAddr.length);
+                    out.writeBytes(bndAddr);
                 } else {
+                    out.writeByte(1);
                     out.writeByte(0);
                 }
             } else if (typeVal == Socks5AddressType.IPv6.byteValue()) {

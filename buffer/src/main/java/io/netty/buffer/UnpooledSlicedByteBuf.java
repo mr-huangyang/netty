@@ -19,7 +19,8 @@ package io.netty.buffer;
  * A special {@link AbstractUnpooledSlicedByteBuf} that can make optimizations because it knows the sliced buffer is of
  * type {@link AbstractByteBuf}.
  */
-class UnpooledSlicedByteBuf extends AbstractUnpooledSlicedByteBuf {
+final class UnpooledSlicedByteBuf extends AbstractUnpooledSlicedByteBuf {
+
     UnpooledSlicedByteBuf(AbstractByteBuf buffer, int index, int length) {
         super(buffer, index, length);
     }

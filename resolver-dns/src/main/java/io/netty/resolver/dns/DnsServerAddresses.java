@@ -16,11 +16,17 @@
 
 package io.netty.resolver.dns;
 
+import io.netty.util.internal.InternalThreadLocalMap;
 import io.netty.util.internal.UnstableApi;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 
+import java.lang.reflect.Method;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -29,21 +35,66 @@ import java.util.List;
 @UnstableApi
 @SuppressWarnings("IteratorNextCanNotThrowNoSuchElementException")
 public abstract class DnsServerAddresses {
+
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(DnsServerAddresses.class);
+
+    private static final List<InetSocketAddress> DEFAULT_NAME_SERVER_LIST;
+    private static final InetSocketAddress[] DEFAULT_NAME_SERVER_ARRAY;
+    private static final DnsServerAddresses DEFAULT_NAME_SERVERS;
+
+    static {
+        final int DNS_PORT = 53;
+        final List<InetSocketAddress> defaultNameServers = new ArrayList<InetSocketAddress>(2);
+        try {
+            Class<?> configClass = Class.forName("sun.net.dns.ResolverConfiguration");
+            Method open = configClass.getMethod("open");
+            Method nameservers = configClass.getMethod("nameservers");
+            Object instance = open.invoke(null);
+
+            @SuppressWarnings("unchecked")
+            final List<String> list = (List<String>) nameservers.invoke(instance);
+            for (String a: list) {
+                if (a != null) {
+                    defaultNameServers.add(new InetSocketAddress(InetAddress.getByName(a), DNS_PORT));
+                }
+            }
+        } catch (Exception ignore) {
+            // Failed to get the system name server list.
+            // Will add the default name servers afterwards.
+        }
+
+        if (!defaultNameServers.isEmpty()) {
+            if (logger.isDebugEnabled()) {
+                logger.debug(
+                        "Default DNS servers: {} (sun.net.dns.ResolverConfiguration)", defaultNameServers);
+            }
+        } else {
+            Collections.addAll(
+                    defaultNameServers,
+                    new InetSocketAddress("8.8.8.8", DNS_PORT),
+                    new InetSocketAddress("8.8.4.4", DNS_PORT));
+
+            if (logger.isWarnEnabled()) {
+                logger.warn(
+                        "Default DNS servers: {} (Google Public DNS as a fallback)", defaultNameServers);
+            }
+        }
+
+        DEFAULT_NAME_SERVER_LIST = Collections.unmodifiableList(defaultNameServers);
+        DEFAULT_NAME_SERVER_ARRAY = defaultNameServers.toArray(new InetSocketAddress[defaultNameServers.size()]);
+        DEFAULT_NAME_SERVERS = sequential(DEFAULT_NAME_SERVER_ARRAY);
+    }
+
     /**
-     * @deprecated Use {@link DefaultDnsServerAddressStreamProvider#defaultAddressList()}.
-     * <p>
      * Returns the list of the system DNS server addresses. If it failed to retrieve the list of the system DNS server
      * addresses from the environment, it will return {@code "8.8.8.8"} and {@code "8.8.4.4"}, the addresses of the
      * Google public DNS servers.
      */
-    @Deprecated
     public static List<InetSocketAddress> defaultAddressList() {
-        return DefaultDnsServerAddressStreamProvider.defaultAddressList();
+        return DEFAULT_NAME_SERVER_LIST;
     }
 
     /**
-     * @deprecated Use {@link DefaultDnsServerAddressStreamProvider#defaultAddresses()}.
-     * <p>
      * Returns the {@link DnsServerAddresses} that yields the system DNS server addresses sequentially. If it failed to
      * retrieve the list of the system DNS server addresses from the environment, it will use {@code "8.8.8.8"} and
      * {@code "8.8.4.4"}, the addresses of the Google public DNS servers.
@@ -54,9 +105,8 @@ public abstract class DnsServerAddresses {
      * </pre>
      * </p>
      */
-    @Deprecated
     public static DnsServerAddresses defaultAddresses() {
-        return DefaultDnsServerAddressStreamProvider.defaultAddresses();
+        return DEFAULT_NAME_SERVERS;
     }
 
     /**
@@ -75,9 +125,9 @@ public abstract class DnsServerAddresses {
         return sequential0(sanitize(addresses));
     }
 
-    private static DnsServerAddresses sequential0(final List<InetSocketAddress> addresses) {
-        if (addresses.size() == 1) {
-            return singleton(addresses.get(0));
+    private static DnsServerAddresses sequential0(final InetSocketAddress... addresses) {
+        if (addresses.length == 1) {
+            return singleton(addresses[0]);
         }
 
         return new DefaultDnsServerAddresses("sequential", addresses) {
@@ -104,9 +154,9 @@ public abstract class DnsServerAddresses {
         return shuffled0(sanitize(addresses));
     }
 
-    private static DnsServerAddresses shuffled0(List<InetSocketAddress> addresses) {
-        if (addresses.size() == 1) {
-            return singleton(addresses.get(0));
+    private static DnsServerAddresses shuffled0(final InetSocketAddress[] addresses) {
+        if (addresses.length == 1) {
+            return singleton(addresses[0]);
         }
 
         return new DefaultDnsServerAddresses("shuffled", addresses) {
@@ -137,9 +187,9 @@ public abstract class DnsServerAddresses {
         return rotational0(sanitize(addresses));
     }
 
-    private static DnsServerAddresses rotational0(List<InetSocketAddress> addresses) {
-        if (addresses.size() == 1) {
-            return singleton(addresses.get(0));
+    private static DnsServerAddresses rotational0(final InetSocketAddress[] addresses) {
+        if (addresses.length == 1) {
+            return singleton(addresses[0]);
         }
 
         return new RotationalDnsServerAddresses(addresses);
@@ -159,7 +209,7 @@ public abstract class DnsServerAddresses {
         return new SingletonDnsServerAddresses(address);
     }
 
-    private static List<InetSocketAddress> sanitize(Iterable<? extends InetSocketAddress> addresses) {
+    private static InetSocketAddress[] sanitize(Iterable<? extends InetSocketAddress> addresses) {
         if (addresses == null) {
             throw new NullPointerException("addresses");
         }
@@ -185,15 +235,15 @@ public abstract class DnsServerAddresses {
             throw new IllegalArgumentException("empty addresses");
         }
 
-        return list;
+        return list.toArray(new InetSocketAddress[list.size()]);
     }
 
-    private static List<InetSocketAddress> sanitize(InetSocketAddress[] addresses) {
+    private static InetSocketAddress[] sanitize(InetSocketAddress[] addresses) {
         if (addresses == null) {
             throw new NullPointerException("addresses");
         }
 
-        List<InetSocketAddress> list = new ArrayList<InetSocketAddress>(addresses.length);
+        List<InetSocketAddress> list = InternalThreadLocalMap.get().arrayList(addresses.length);
         for (InetSocketAddress a: addresses) {
             if (a == null) {
                 break;
@@ -205,10 +255,10 @@ public abstract class DnsServerAddresses {
         }
 
         if (list.isEmpty()) {
-            return DefaultDnsServerAddressStreamProvider.defaultAddressList();
+            return DEFAULT_NAME_SERVER_ARRAY;
         }
 
-        return list;
+        return list.toArray(new InetSocketAddress[list.size()]);
     }
 
     /**

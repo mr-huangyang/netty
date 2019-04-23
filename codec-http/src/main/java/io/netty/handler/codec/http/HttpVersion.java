@@ -15,8 +15,6 @@
  */
 package io.netty.handler.codec.http;
 
-import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.util.CharsetUtil;
 
@@ -62,7 +60,7 @@ public class HttpVersion implements Comparable<HttpVersion> {
         text = text.trim();
 
         if (text.isEmpty()) {
-            throw new IllegalArgumentException("text is empty (possibly HTTP/0.9)");
+            throw new IllegalArgumentException("text is empty");
         }
 
         // Try to match without convert to uppercase first as this is what 99% of all clients
@@ -167,8 +165,12 @@ public class HttpVersion implements Comparable<HttpVersion> {
             }
         }
 
-        checkPositiveOrZero(majorVersion, "majorVersion");
-        checkPositiveOrZero(minorVersion, "minorVersion");
+        if (majorVersion < 0) {
+            throw new IllegalArgumentException("negative majorVersion");
+        }
+        if (minorVersion < 0) {
+            throw new IllegalArgumentException("negative minorVersion");
+        }
 
         this.protocolName = protocolName;
         this.majorVersion = majorVersion;
@@ -262,7 +264,7 @@ public class HttpVersion implements Comparable<HttpVersion> {
 
     void encode(ByteBuf buf) {
         if (bytes == null) {
-            buf.writeCharSequence(text, CharsetUtil.US_ASCII);
+            HttpUtil.encodeAscii0(text, buf);
         } else {
             buf.writeBytes(bytes);
         }

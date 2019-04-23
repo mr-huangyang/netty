@@ -26,6 +26,8 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.lang.Thread.UncaughtExceptionHandler;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.security.SecureRandom;
 import java.util.Random;
 import java.util.concurrent.BlockingQueue;
@@ -72,9 +74,21 @@ public final class ThreadLocalRandom extends Random {
     private static volatile long seedGeneratorEndTime;
 
     static {
-        initialSeedUniquifier = SystemPropertyUtil.getLong("io.netty.initialSeedUniquifier", 0);
+        initialSeedUniquifier = AccessController.doPrivileged(new PrivilegedAction<Long>() {
+            @Override
+            public Long run() {
+                return Long.getLong("io.netty.initialSeedUniquifier", 0);
+            }
+        });
+
         if (initialSeedUniquifier == 0) {
-            boolean secureRandom = SystemPropertyUtil.getBoolean("java.util.secureRandomSeed", false);
+            boolean secureRandom = AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+                @Override
+                public Boolean run() {
+                    return Boolean.getBoolean("java.util.secureRandomSeed");
+                }
+            });
+
             if (secureRandom) {
                 seedQueue = new LinkedBlockingQueue<Long>();
                 seedGeneratorStartTime = System.nanoTime();

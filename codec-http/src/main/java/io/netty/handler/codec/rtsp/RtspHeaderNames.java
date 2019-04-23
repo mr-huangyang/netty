@@ -35,13 +35,13 @@ public final class RtspHeaderNames {
      */
     public static final AsciiString ACCEPT_ENCODING = HttpHeaderNames.ACCEPT_ENCODING;
     /**
-     * {@code "accept-language"}
+     * {@code "accept-lanugage"}
      */
     public static final AsciiString ACCEPT_LANGUAGE = HttpHeaderNames.ACCEPT_LANGUAGE;
     /**
      * {@code "allow"}
      */
-    public static final AsciiString ALLOW = AsciiString.cached("allow");
+    public static final AsciiString ALLOW = new AsciiString("allow");
     /**
      * {@code "authorization"}
      */
@@ -49,11 +49,11 @@ public final class RtspHeaderNames {
     /**
      * {@code "bandwidth"}
      */
-    public static final AsciiString BANDWIDTH = AsciiString.cached("bandwidth");
+    public static final AsciiString BANDWIDTH = new AsciiString("bandwidth");
     /**
      * {@code "blocksize"}
      */
-    public static final AsciiString BLOCKSIZE = AsciiString.cached("blocksize");
+    public static final AsciiString BLOCKSIZE = new AsciiString("blocksize");
     /**
      * {@code "cache-control"}
      */
@@ -61,7 +61,7 @@ public final class RtspHeaderNames {
     /**
      * {@code "conference"}
      */
-    public static final AsciiString CONFERENCE = AsciiString.cached("conference");
+    public static final AsciiString CONFERENCE = new AsciiString("conference");
     /**
      * {@code "connection"}
      */
@@ -93,7 +93,7 @@ public final class RtspHeaderNames {
     /**
      * {@code "cseq"}
      */
-    public static final AsciiString CSEQ = AsciiString.cached("cseq");
+    public static final AsciiString CSEQ = new AsciiString("cseq");
     /**
      * {@code "cate"}
      */
@@ -121,7 +121,7 @@ public final class RtspHeaderNames {
     /**
      * {@code "keymgmt"}
      */
-    public static final AsciiString KEYMGMT = AsciiString.cached("keymgmt");
+    public static final AsciiString KEYMGMT = new AsciiString("keymgmt");
     /**
      * {@code "last-modified"}
      */
@@ -133,11 +133,11 @@ public final class RtspHeaderNames {
     /**
      * {@code "proxy-require"}
      */
-    public static final AsciiString PROXY_REQUIRE = AsciiString.cached("proxy-require");
+    public static final AsciiString PROXY_REQUIRE = new AsciiString("proxy-require");
     /**
      * {@code "public"}
      */
-    public static final AsciiString PUBLIC = AsciiString.cached("public");
+    public static final AsciiString PUBLIC = new AsciiString("public");
     /**
      * {@code "range"}
      */
@@ -149,7 +149,7 @@ public final class RtspHeaderNames {
     /**
      * {@code "require"}
      */
-    public static final AsciiString REQUIRE = AsciiString.cached("require");
+    public static final AsciiString REQUIRE = new AsciiString("require");
     /**
      * {@code "retry-after"}
      */
@@ -157,15 +157,15 @@ public final class RtspHeaderNames {
     /**
      * {@code "rtp-info"}
      */
-    public static final AsciiString RTP_INFO = AsciiString.cached("rtp-info");
+    public static final AsciiString RTP_INFO = new AsciiString("rtp-info");
     /**
      * {@code "scale"}
      */
-    public static final AsciiString SCALE = AsciiString.cached("scale");
+    public static final AsciiString SCALE = new AsciiString("scale");
     /**
      * {@code "session"}
      */
-    public static final AsciiString SESSION = AsciiString.cached("session");
+    public static final AsciiString SESSION = new AsciiString("session");
     /**
      * {@code "server"}
      */
@@ -173,19 +173,19 @@ public final class RtspHeaderNames {
     /**
      * {@code "speed"}
      */
-    public static final AsciiString SPEED = AsciiString.cached("speed");
+    public static final AsciiString SPEED = new AsciiString("speed");
     /**
      * {@code "timestamp"}
      */
-    public static final AsciiString TIMESTAMP = AsciiString.cached("timestamp");
+    public static final AsciiString TIMESTAMP = new AsciiString("timestamp");
     /**
      * {@code "transport"}
      */
-    public static final AsciiString TRANSPORT = AsciiString.cached("transport");
+    public static final AsciiString TRANSPORT = new AsciiString("transport");
     /**
      * {@code "unsupported"}
      */
-    public static final AsciiString UNSUPPORTED = AsciiString.cached("unsupported");
+    public static final AsciiString UNSUPPORTED = new AsciiString("unsupported");
     /**
      * {@code "user-agent"}
      */

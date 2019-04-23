@@ -28,7 +28,6 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.RecvByteBufAllocator;
 import io.netty.util.ReferenceCountUtil;
-import io.netty.util.UncheckedBooleanSupplier;
 import org.junit.Test;
 
 import java.util.concurrent.CountDownLatch;
@@ -40,7 +39,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class SocketReadPendingTest extends AbstractSocketTest {
-    @Test(timeout = 30000)
+    @Test
     public void testReadPendingIsResetAfterEachRead() throws Throwable {
         run();
     }
@@ -60,11 +59,12 @@ public class SocketReadPendingTest extends AbstractSocketTest {
 
             serverChannel = sb.bind().syncUninterruptibly().channel();
 
-            cb.option(ChannelOption.AUTO_READ, false)
+            cb.remoteAddress(serverChannel.localAddress())
+              .option(ChannelOption.AUTO_READ, false)
               // We intend to do 2 reads per read loop wakeup
               .option(ChannelOption.RCVBUF_ALLOCATOR, new TestNumReadsRecvByteBufAllocator(2))
               .handler(clientInitializer);
-            clientChannel = cb.connect(serverChannel.localAddress()).syncUninterruptibly().channel();
+            clientChannel = cb.connect().syncUninterruptibly().channel();
 
             // 4 bytes means 2 read loops for TestNumReadsRecvByteBufAllocator
             clientChannel.writeAndFlush(Unpooled.wrappedBuffer(new byte[4]));
@@ -130,7 +130,7 @@ public class SocketReadPendingTest extends AbstractSocketTest {
     }
 
     /**
-     * Designed to read a single byte at a time to control the number of reads done at a fine granularity.
+     * Designed to keep reading as long as autoread is enabled.
      */
     private static final class TestNumReadsRecvByteBufAllocator implements RecvByteBufAllocator {
         private final int numReads;
@@ -139,8 +139,8 @@ public class SocketReadPendingTest extends AbstractSocketTest {
         }
 
         @Override
-        public ExtendedHandle newHandle() {
-            return new ExtendedHandle() {
+        public Handle newHandle() {
+            return new Handle() {
                 private int attemptedBytesRead;
                 private int lastBytesRead;
                 private int numMessagesRead;
@@ -187,11 +187,6 @@ public class SocketReadPendingTest extends AbstractSocketTest {
                 @Override
                 public boolean continueReading() {
                     return numMessagesRead < numReads;
-                }
-
-                @Override
-                public boolean continueReading(UncheckedBooleanSupplier maybeMoreDataSupplier) {
-                    return continueReading();
                 }
 
                 @Override

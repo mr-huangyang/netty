@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
  * Reads the first {@link Http2Settings} object and notifies a {@link io.netty.channel.ChannelPromise}
  */
 public class Http2SettingsHandler extends SimpleChannelInboundHandler<Http2Settings> {
-    private final ChannelPromise promise;
+    private ChannelPromise promise;
 
     /**
      * Create new instance

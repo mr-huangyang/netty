@@ -38,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 
 import static io.netty.handler.codec.spdy.SpdyHeaders.HttpNames.*;
-import static io.netty.util.internal.ObjectUtil.checkPositive;
 
 /**
  * Decodes {@link SpdySynStreamFrame}s, {@link SpdySynReplyFrame}s,
@@ -104,7 +103,10 @@ public class SpdyHttpDecoder extends MessageToMessageDecoder<SpdyFrame> {
         if (version == null) {
             throw new NullPointerException("version");
         }
-        checkPositive(maxContentLength, "maxContentLength");
+        if (maxContentLength <= 0) {
+            throw new IllegalArgumentException(
+                    "maxContentLength must be a positive integer: " + maxContentLength);
+        }
         spdyVersion = version.getVersion();
         this.maxContentLength = maxContentLength;
         this.messageMap = messageMap;
@@ -177,7 +179,7 @@ public class SpdyHttpDecoder extends MessageToMessageDecoder<SpdyFrame> {
                 try {
                     FullHttpRequest httpRequestWithEntity = createHttpRequest(spdySynStreamFrame, ctx.alloc());
 
-                    // Set the Stream-ID, Associated-To-Stream-ID, and Priority as headers
+                    // Set the Stream-ID, Associated-To-Stream-ID, iand Priority as headers
                     httpRequestWithEntity.headers().setInt(Names.STREAM_ID, streamId);
                     httpRequestWithEntity.headers().setInt(Names.ASSOCIATED_TO_STREAM_ID, associatedToStreamId);
                     httpRequestWithEntity.headers().setInt(Names.PRIORITY, spdySynStreamFrame.priority());

@@ -159,7 +159,6 @@ final class Bzip2HuffmanAllocator {
         switch (array.length) {
             case 2:
                 array[1] = 1;
-                // fall through
             case 1:
                 array[0] = 1;
                 return;

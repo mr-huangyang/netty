@@ -19,6 +19,8 @@ import io.netty.buffer.ByteBufAllocator;
 
 import javax.net.ssl.SSLEngine;
 
+import static io.netty.util.ReferenceCountUtil.safeRelease;
+
 /**
  * Implements a {@link SSLEngine} using
  * <a href="https://www.openssl.org/docs/crypto/BIO_s_bio.html#EXAMPLE">OpenSSL BIO abstractions</a>.
@@ -27,9 +29,8 @@ import javax.net.ssl.SSLEngine;
  * and manually release the native memory see {@link ReferenceCountedOpenSslEngine}.
  */
 public final class OpenSslEngine extends ReferenceCountedOpenSslEngine {
-    OpenSslEngine(OpenSslContext context, ByteBufAllocator alloc, String peerHost, int peerPort,
-                  boolean jdkCompatibilityMode) {
-        super(context, alloc, peerHost, peerPort, jdkCompatibilityMode, false);
+    OpenSslEngine(OpenSslContext context, ByteBufAllocator alloc, String peerHost, int peerPort) {
+        super(context, alloc, peerHost, peerPort, false);
     }
 
     @Override

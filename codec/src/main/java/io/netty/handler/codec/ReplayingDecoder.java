@@ -327,10 +327,11 @@ public abstract class ReplayingDecoder<S> extends ByteToMessageDecoder {
             replayable.terminate();
             if (cumulation != null) {
                 callDecode(ctx, internalBuffer(), out);
+                decodeLast(ctx, replayable, out);
             } else {
                 replayable.setCumulation(Unpooled.EMPTY_BUFFER);
+                decodeLast(ctx, replayable, out);
             }
-            decodeLast(ctx, replayable, out);
         } catch (Signal replay) {
             // Ignore
             replay.expect(REPLAY);
@@ -363,7 +364,7 @@ public abstract class ReplayingDecoder<S> extends ByteToMessageDecoder {
                 S oldState = state;
                 int oldInputLength = in.readableBytes();
                 try {
-                    decodeRemovalReentryProtection(ctx, replayable, out);
+                    decode(ctx, replayable, out);
 
                     // Check if this handler was removed before continuing the loop.
                     // If it was removed, it is not safe to continue to operate on the buffer.
@@ -417,7 +418,7 @@ public abstract class ReplayingDecoder<S> extends ByteToMessageDecoder {
             }
         } catch (DecoderException e) {
             throw e;
-        } catch (Exception cause) {
+        } catch (Throwable cause) {
             throw new DecoderException(cause);
         }
     }

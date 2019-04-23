@@ -32,6 +32,9 @@ import java.util.concurrent.ThreadFactory;
 
 /**
  * {@link MultithreadEventLoopGroup} implementations which is used for NIO {@link Selector} based {@link Channel}s.
+ * <br/>
+ * 此类的父类，每一层都有自己的职责，划分的很明确。最高层的父类只是负责调用
+ * a: 只是override了 newChild 方法，返回类型为EventLoop
  */
 public class NioEventLoopGroup extends MultithreadEventLoopGroup {
 
@@ -121,6 +124,13 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
         }
     }
 
+    /**
+     * override了父类的方法,返回类型从EventExecutor变成了EventLoop, 后者是前者的子类
+     * @param executor
+     * @param args
+     * @return
+     * @throws Exception
+     */
     @Override
     protected EventLoop newChild(Executor executor, Object... args) throws Exception {
         return new NioEventLoop(this, executor, (SelectorProvider) args[0],

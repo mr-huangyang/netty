@@ -25,15 +25,13 @@ import java.util.List;
 
 import static java.lang.Math.*;
 
-import java.nio.ByteBuffer;
-
 final class PoolChunkList<T> implements PoolChunkListMetric {
     private static final Iterator<PoolChunkMetric> EMPTY_METRICS = Collections.<PoolChunkMetric>emptyList().iterator();
-    private final PoolArena<T> arena;
     private final PoolChunkList<T> nextList;
     private final int minUsage;
     private final int maxUsage;
     private final int maxCapacity;
+
     private PoolChunk<T> head;
 
     // This is only update once when create the linked like list of PoolChunkList in PoolArena constructor.
@@ -42,9 +40,8 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
     // TODO: Test if adding padding helps under contention
     //private long pad0, pad1, pad2, pad3, pad4, pad5, pad6, pad7;
 
-    PoolChunkList(PoolArena<T> arena, PoolChunkList<T> nextList, int minUsage, int maxUsage, int chunkSize) {
+    PoolChunkList(PoolChunkList<T> nextList, int minUsage, int maxUsage, int chunkSize) {
         assert minUsage <= maxUsage;
-        this.arena = arena;
         this.nextList = nextList;
         this.minUsage = minUsage;
         this.maxUsage = maxUsage;
@@ -77,14 +74,21 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
     }
 
     boolean allocate(PooledByteBuf<T> buf, int reqCapacity, int normCapacity) {
-        if (normCapacity > maxCapacity) {
+        if (head == null || normCapacity > maxCapacity) {
             // Either this PoolChunkList is empty or the requested capacity is larger then the capacity which can
             // be handled by the PoolChunks that are contained in this PoolChunkList.
             return false;
         }
 
-        for (PoolChunk<T> cur = head; cur != null; cur = cur.next) {
-            if (cur.allocate(buf, reqCapacity, normCapacity)) {
+        for (PoolChunk<T> cur = head;;) {
+            long handle = cur.allocate(normCapacity);
+            if (handle < 0) {
+                cur = cur.next;
+                if (cur == null) {
+                    return false;
+                }
+            } else {
+                cur.initBuf(buf, handle, reqCapacity);
                 if (cur.usage() >= maxUsage) {
                     remove(cur);
                     nextList.add(cur);
@@ -92,11 +96,10 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
                 return true;
             }
         }
-        return false;
     }
 
-    boolean free(PoolChunk<T> chunk, long handle, ByteBuffer nioBuffer) {
-        chunk.free(handle, nioBuffer);
+    boolean free(PoolChunk<T> chunk, long handle) {
+        chunk.free(handle);
         if (chunk.usage() < minUsage) {
             remove(chunk);
             // Move the PoolChunk down the PoolChunkList linked-list.
@@ -188,48 +191,36 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
 
     @Override
     public Iterator<PoolChunkMetric> iterator() {
-        synchronized (arena) {
-            if (head == null) {
-                return EMPTY_METRICS;
-            }
-            List<PoolChunkMetric> metrics = new ArrayList<PoolChunkMetric>();
-            for (PoolChunk<T> cur = head;;) {
-                metrics.add(cur);
-                cur = cur.next;
-                if (cur == null) {
-                    break;
-                }
-            }
-            return metrics.iterator();
+        if (head == null) {
+            return EMPTY_METRICS;
         }
+        List<PoolChunkMetric> metrics = new ArrayList<PoolChunkMetric>();
+        for (PoolChunk<T> cur = head;;) {
+            metrics.add(cur);
+            cur = cur.next;
+            if (cur == null) {
+                break;
+            }
+        }
+        return metrics.iterator();
     }
 
     @Override
     public String toString() {
+        if (head == null) {
+            return "none";
+        }
+
         StringBuilder buf = new StringBuilder();
-        synchronized (arena) {
-            if (head == null) {
-                return "none";
+        for (PoolChunk<T> cur = head;;) {
+            buf.append(cur);
+            cur = cur.next;
+            if (cur == null) {
+                break;
             }
-
-            for (PoolChunk<T> cur = head;;) {
-                buf.append(cur);
-                cur = cur.next;
-                if (cur == null) {
-                    break;
-                }
-                buf.append(StringUtil.NEWLINE);
-            }
+            buf.append(StringUtil.NEWLINE);
         }
+
         return buf.toString();
-    }
-
-    void destroy(PoolArena<T> arena) {
-        PoolChunk<T> chunk = head;
-        while (chunk != null) {
-            arena.destroyChunk(chunk);
-            chunk = chunk.next;
-        }
-        head = null;
     }
 }

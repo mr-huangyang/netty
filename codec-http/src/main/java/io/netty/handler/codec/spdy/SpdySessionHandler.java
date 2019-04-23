@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.netty.handler.codec.spdy.SpdyCodecUtil.SPDY_SESSION_STREAM_ID;
 import static io.netty.handler.codec.spdy.SpdyCodecUtil.isServerId;
-import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 
 /**
  * Manages streams within a SPDY session.
@@ -78,14 +77,16 @@ public class SpdySessionHandler extends ChannelDuplexHandler {
     }
 
     public void setSessionReceiveWindowSize(int sessionReceiveWindowSize) {
-        checkPositiveOrZero(sessionReceiveWindowSize, "sessionReceiveWindowSize");
-        // This will not send a window update frame immediately.
-        // If this value increases the allowed receive window size,
-        // a WINDOW_UPDATE frame will be sent when only half of the
-        // session window size remains during data frame processing.
-        // If this value decreases the allowed receive window size,
-        // the window will be reduced as data frames are processed.
-        initialSessionReceiveWindowSize = sessionReceiveWindowSize;
+      if (sessionReceiveWindowSize < 0) {
+        throw new IllegalArgumentException("sessionReceiveWindowSize");
+      }
+      // This will not send a window update frame immediately.
+      // If this value increases the allowed receive window size,
+      // a WINDOW_UPDATE frame will be sent when only half of the
+      // session window size remains during data frame processing.
+      // If this value decreases the allowed receive window size,
+      // the window will be reduced as data frames are processed.
+      initialSessionReceiveWindowSize = sessionReceiveWindowSize;
     }
 
     @Override

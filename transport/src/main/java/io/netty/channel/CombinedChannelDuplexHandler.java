@@ -45,15 +45,12 @@ public class CombinedChannelDuplexHandler<I extends ChannelInboundHandler, O ext
      * {@link #init(ChannelInboundHandler, ChannelOutboundHandler)} before adding this handler into a
      * {@link ChannelPipeline}.
      */
-    protected CombinedChannelDuplexHandler() {
-        ensureNotSharable();
-    }
+    protected CombinedChannelDuplexHandler() { }
 
     /**
      * Creates a new instance that combines the specified two handlers into one.
      */
     public CombinedChannelDuplexHandler(I inboundHandler, O outboundHandler) {
-        ensureNotSharable();
         init(inboundHandler, outboundHandler);
     }
 
@@ -581,12 +578,12 @@ public class CombinedChannelDuplexHandler<I extends ChannelInboundHandler, O ext
 
         @Override
         public <T> Attribute<T> attr(AttributeKey<T> key) {
-            return ctx.channel().attr(key);
+            return ctx.attr(key);
         }
 
         @Override
         public <T> boolean hasAttr(AttributeKey<T> key) {
-            return ctx.channel().hasAttr(key);
+            return ctx.hasAttr(key);
         }
 
         final void remove() {

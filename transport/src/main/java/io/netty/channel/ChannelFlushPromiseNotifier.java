@@ -15,8 +15,6 @@
  */
 package io.netty.channel;
 
-import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
-
 import java.util.ArrayDeque;
 import java.util.Queue;
 
@@ -66,7 +64,9 @@ public final class ChannelFlushPromiseNotifier {
         if (promise == null) {
             throw new NullPointerException("promise");
         }
-        checkPositiveOrZero(pendingDataSize, "pendingDataSize");
+        if (pendingDataSize < 0) {
+            throw new IllegalArgumentException("pendingDataSize must be >= 0 but was " + pendingDataSize);
+        }
         long checkpoint = writeCounter + pendingDataSize;
         if (promise instanceof FlushCheckpoint) {
             FlushCheckpoint cp = (FlushCheckpoint) promise;
@@ -81,7 +81,9 @@ public final class ChannelFlushPromiseNotifier {
      * Increase the current write counter by the given delta
      */
     public ChannelFlushPromiseNotifier increaseWriteCounter(long delta) {
-        checkPositiveOrZero(delta, "delta");
+        if (delta < 0) {
+            throw new IllegalArgumentException("delta must be >= 0 but was " + delta);
+        }
         writeCounter += delta;
         return this;
     }
@@ -95,7 +97,7 @@ public final class ChannelFlushPromiseNotifier {
 
     /**
      * Notify all {@link ChannelFuture}s that were registered with {@link #add(ChannelPromise, int)} and
-     * their pendingDatasize is smaller after the current writeCounter returned by {@link #writeCounter()}.
+     * their pendingDatasize is smaller after the the current writeCounter returned by {@link #writeCounter()}.
      *
      * After a {@link ChannelFuture} was notified it will be removed from this {@link ChannelFlushPromiseNotifier} and
      * so not receive anymore notification.
@@ -160,7 +162,7 @@ public final class ChannelFlushPromiseNotifier {
      *
      * So after this operation this {@link ChannelFutureListener} is empty.
      *
-     * @param cause1    the {@link Throwable} which will be used to fail all of the {@link ChannelFuture}s which
+     * @param cause1    the {@link Throwable} which will be used to fail all of the {@link ChannelFuture}s whichs
      *                  pendingDataSize is smaller then the current writeCounter returned by {@link #writeCounter()}
      * @param cause2    the {@link Throwable} which will be used to fail the remaining {@link ChannelFuture}s
      */

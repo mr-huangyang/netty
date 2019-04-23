@@ -15,7 +15,6 @@
  */
 package io.netty.handler.codec.http2;
 
-import io.netty.util.internal.StringUtil;
 import io.netty.util.internal.UnstableApi;
 
 import static io.netty.handler.codec.http2.Http2CodecUtil.verifyPadding;
@@ -64,8 +63,8 @@ public final class DefaultHttp2HeadersFrame extends AbstractHttp2StreamFrame imp
     }
 
     @Override
-    public DefaultHttp2HeadersFrame stream(Http2FrameStream stream) {
-        super.stream(stream);
+    public DefaultHttp2HeadersFrame setStreamId(int streamId) {
+        super.setStreamId(streamId);
         return this;
     }
 
@@ -91,8 +90,8 @@ public final class DefaultHttp2HeadersFrame extends AbstractHttp2StreamFrame imp
 
     @Override
     public String toString() {
-        return StringUtil.simpleClassName(this) + "(stream=" + stream() + ", headers=" + headers
-               + ", endStream=" + endStream + ", padding=" + padding + ')';
+        return "DefaultHttp2HeadersFrame(streamId=" + streamId() + ", headers=" + headers
+            + ", endStream=" + endStream + ", padding=" + padding + ")";
     }
 
     @Override

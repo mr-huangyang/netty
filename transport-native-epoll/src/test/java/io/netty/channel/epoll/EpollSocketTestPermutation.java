@@ -25,7 +25,6 @@ import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.channel.unix.DomainSocketAddress;
-import io.netty.channel.unix.tests.UnixTestUtils;
 import io.netty.testsuite.transport.TestsuitePermutation;
 import io.netty.testsuite.transport.TestsuitePermutation.BootstrapFactory;
 import io.netty.testsuite.transport.socket.SocketTestPermutation;
@@ -119,8 +118,7 @@ class EpollSocketTestPermutation extends SocketTestPermutation {
     }
 
     @Override
-    public List<TestsuitePermutation.BootstrapComboFactory<Bootstrap, Bootstrap>> datagram(
-            final InternetProtocolFamily family) {
+    public List<TestsuitePermutation.BootstrapComboFactory<Bootstrap, Bootstrap>> datagram() {
         // Make the list of Bootstrap factories.
         @SuppressWarnings("unchecked")
         List<BootstrapFactory<Bootstrap>> bfs = Arrays.asList(
@@ -130,7 +128,7 @@ class EpollSocketTestPermutation extends SocketTestPermutation {
                         return new Bootstrap().group(nioWorkerGroup).channelFactory(new ChannelFactory<Channel>() {
                             @Override
                             public Channel newChannel() {
-                                return new NioDatagramChannel(family);
+                                return new NioDatagramChannel(InternetProtocolFamily.IPv4);
                             }
 
                             @Override
@@ -180,18 +178,6 @@ class EpollSocketTestPermutation extends SocketTestPermutation {
         );
     }
 
-    @Override
-    public List<BootstrapFactory<Bootstrap>> datagramSocket() {
-        return Collections.<BootstrapFactory<Bootstrap>>singletonList(
-                new BootstrapFactory<Bootstrap>() {
-                    @Override
-                    public Bootstrap newInstance() {
-                        return new Bootstrap().group(EPOLL_WORKER_GROUP).channel(EpollDatagramChannel.class);
-                    }
-                }
-        );
-    }
-
     public boolean isServerFastOpen() {
         return AccessController.doPrivileged(new PrivilegedAction<Integer>() {
             @Override
@@ -228,6 +214,12 @@ class EpollSocketTestPermutation extends SocketTestPermutation {
     }
 
     public static DomainSocketAddress newSocketAddress() {
-        return UnixTestUtils.newSocketAddress();
+        try {
+            File file = File.createTempFile("netty", "dsocket");
+            file.delete();
+            return new DomainSocketAddress(file);
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

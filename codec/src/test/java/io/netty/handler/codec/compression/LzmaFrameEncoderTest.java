@@ -69,6 +69,7 @@ public class LzmaFrameEncoderTest extends AbstractEncoderTest {
         while ((msg = channel.readOutbound()) != null) {
             ByteBuf decompressedMsg = decompress(msg, originalLengths.get(i++));
             decompressed.addComponent(true, decompressedMsg);
+            msg.release();
         }
         assertEquals(originalLengths.size(), i);
         assertEquals(data, decompressed);
@@ -79,32 +80,21 @@ public class LzmaFrameEncoderTest extends AbstractEncoderTest {
 
     @Override
     protected ByteBuf decompress(ByteBuf compressed, int originalLength) throws Exception {
-        InputStream is = new ByteBufInputStream(compressed, true);
-        LzmaInputStream lzmaIs = null;
+        InputStream is = new ByteBufInputStream(compressed);
+        LzmaInputStream lzmaIs = new LzmaInputStream(is, new Decoder());
+
         byte[] decompressed = new byte[originalLength];
-        try {
-            lzmaIs = new LzmaInputStream(is, new Decoder());
-            int remaining = originalLength;
-            while (remaining > 0) {
-                int read = lzmaIs.read(decompressed, originalLength - remaining, remaining);
-                if (read > 0) {
-                    remaining -= read;
-                } else {
-                    break;
-                }
-            }
-            assertEquals(-1, lzmaIs.read());
-        } finally {
-            if (lzmaIs != null) {
-                lzmaIs.close();
-            }
-            // LzmaInputStream does not close the stream it wraps, so we should always close.
-            // The close operation should be safe to call multiple times anyways so lets just call it and be safe.
-            // https://github.com/jponge/lzma-java/issues/14
-            if (is != null) {
-                is.close();
+        int remaining = originalLength;
+        while (remaining > 0) {
+            int read = lzmaIs.read(decompressed, originalLength - remaining, remaining);
+            if (read > 0) {
+                remaining -= read;
+            } else {
+                break;
             }
         }
+        assertEquals(-1, lzmaIs.read());
+        lzmaIs.close();
 
         return Unpooled.wrappedBuffer(decompressed);
     }

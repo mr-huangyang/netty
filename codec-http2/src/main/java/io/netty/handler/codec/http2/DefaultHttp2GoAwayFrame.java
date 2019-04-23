@@ -15,12 +15,9 @@
  */
 package io.netty.handler.codec.http2;
 
-import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.DefaultByteBufHolder;
 import io.netty.buffer.Unpooled;
-import io.netty.util.internal.StringUtil;
 import io.netty.util.internal.UnstableApi;
 
 /**
@@ -30,7 +27,7 @@ import io.netty.util.internal.UnstableApi;
 public final class DefaultHttp2GoAwayFrame extends DefaultByteBufHolder implements Http2GoAwayFrame {
 
     private final long errorCode;
-    private final int lastStreamId;
+    private int lastStreamId;
     private int extraStreamIds;
 
     /**
@@ -100,7 +97,9 @@ public final class DefaultHttp2GoAwayFrame extends DefaultByteBufHolder implemen
 
     @Override
     public Http2GoAwayFrame setExtraStreamIds(int extraStreamIds) {
-        checkPositiveOrZero(extraStreamIds, "extraStreamIds");
+        if (extraStreamIds < 0) {
+            throw new IllegalArgumentException("extraStreamIds must be non-negative");
+        }
         this.extraStreamIds = extraStreamIds;
         return this;
     }
@@ -160,20 +159,22 @@ public final class DefaultHttp2GoAwayFrame extends DefaultByteBufHolder implemen
             return false;
         }
         DefaultHttp2GoAwayFrame other = (DefaultHttp2GoAwayFrame) o;
-        return errorCode == other.errorCode && extraStreamIds == other.extraStreamIds && super.equals(other);
+        return super.equals(o) && errorCode == other.errorCode && content().equals(other.content())
+            && extraStreamIds == other.extraStreamIds;
     }
 
     @Override
     public int hashCode() {
-        int hash = super.hashCode();
+        int hash = 237395317;
         hash = hash * 31 + (int) (errorCode ^ (errorCode >>> 32));
+        hash = hash * 31 + content().hashCode();
         hash = hash * 31 + extraStreamIds;
         return hash;
     }
 
     @Override
     public String toString() {
-        return StringUtil.simpleClassName(this) + "(errorCode=" + errorCode + ", content=" + content()
-               + ", extraStreamIds=" + extraStreamIds + ", lastStreamId=" + lastStreamId + ')';
+        return "DefaultHttp2GoAwayFrame(errorCode=" + errorCode + ", content=" + content()
+               + ", extraStreamIds=" + extraStreamIds + ", lastStreamId=" + lastStreamId + ")";
     }
 }
