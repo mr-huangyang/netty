@@ -134,7 +134,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             throw new NullPointerException("selectStrategy");
         }
         provider = selectorProvider;
-        //多个channel会注册到同一个loop , 也就是注册到同一个selector上
+        //#oy: 多个channel会注册到同一个loop , 也就是注册到同一个selector上
         selector = openSelector();
         selectStrategy = strategy;
     }
@@ -372,8 +372,8 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     }
 
     /**
-     * 网络数据读写操作入口
-     * 死循环
+     * #oy: 网络数据读写操作入口
+     *
      */
     @Override
     protected void run() {
@@ -609,7 +609,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             // to a spin loop
             if ((readyOps & (SelectionKey.OP_READ | SelectionKey.OP_ACCEPT)) != 0 || readyOps == 0) {
 
-                //  **** 读取网络数据 ******
+                //#oy:   **** 读取网络数据 ******
                 unsafe.read();
                 if (!ch.isOpen()) {
                     // Connection already closed - no need to handle write.

@@ -17,6 +17,7 @@ package io.netty.channel;
 
 /**
  * {@link ChannelOutboundInvoker}
+ * 代表了channel 作为io nexus inbound 方向的操作
  * 定义了各种fire方法用于触发事件，而事件处理在 {@link ChannelHandler} 相关的接口中
  */
 public interface ChannelInboundInvoker {

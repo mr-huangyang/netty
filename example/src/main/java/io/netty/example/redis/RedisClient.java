@@ -16,11 +16,7 @@
 package io.netty.example.redis;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -50,6 +46,7 @@ public class RedisClient {
                  @Override
                  protected void initChannel(SocketChannel ch) throws Exception {
                      ChannelPipeline p = ch.pipeline();
+//                     ((MaxMessagesRecvByteBufAllocator)ch.config().getRecvByteBufAllocator()).maxMessagesPerRead(1);
                      p.addLast(new RedisDecoder());
                      p.addLast(new RedisBulkStringAggregator());
                      p.addLast(new RedisArrayAggregator());

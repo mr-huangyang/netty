@@ -55,7 +55,9 @@ public abstract class DefaultMaxMessagesRecvByteBufAllocator implements MaxMessa
         private int maxMessagePerRead;
         private int totalMessages;
         private int totalBytesRead;
+        // 本次最多可以读取的字节数
         private int attemptedBytesRead;
+        //本次读取的字节数
         private int lastBytesRead;
 
         /**

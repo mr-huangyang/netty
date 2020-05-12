@@ -523,7 +523,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 }
                 boolean firstRegistration = neverRegistered;
 
-                //执行真正的注册
+                //#oy: 执行真正的注册
                 doRegister();
 
                 neverRegistered = false;
@@ -537,7 +537,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
                 safeSetSuccess(promise);
 
-                //在pipeline中发布已注册事件
+                //#oy: 在pipeline中发布已注册事件
                 pipeline.fireChannelRegistered();
 
                 // Only fire a channelActive if the channel has never been registered. This prevents firing

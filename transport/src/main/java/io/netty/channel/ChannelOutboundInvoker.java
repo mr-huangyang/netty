@@ -22,7 +22,9 @@ import java.net.ConnectException;
 import java.net.SocketAddress;
 
 /**
+ * 表示channel作为 io nexus outbound 方向的操作
  * 定义了对外操作的方法：bind , connect...
+ *
  */
 public interface ChannelOutboundInvoker {
 

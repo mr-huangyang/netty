@@ -41,7 +41,8 @@ import java.util.concurrent.RejectedExecutionException;
  * The default {@link ChannelPipeline} implementation.  It is usually created
  * by a {@link Channel} implementation when the {@link Channel} is created.
  * <br/>
- * 一个ChannelHandlerContext的容器
+ * 一个ChannelHandlerContext的链表
+ * 用于管理 channel handler
  */
 public class DefaultChannelPipeline implements ChannelPipeline {
 

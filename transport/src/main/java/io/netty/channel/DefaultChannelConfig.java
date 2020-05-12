@@ -81,6 +81,7 @@ public class DefaultChannelConfig implements ChannelConfig {
     private volatile boolean pinEventExecutor = true;
 
     public DefaultChannelConfig(Channel channel) {
+        // #oy: 接受数据配置
         this(channel, new AdaptiveRecvByteBufAllocator());
     }
 

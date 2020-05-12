@@ -386,7 +386,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     }
 
     /**
-     * 注册到java nio 中
+     * #oy: 注册到java nio 中
      * @throws Exception
      */
     @Override
@@ -394,7 +394,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         boolean selected = false;
         for (;;) {
             try {
-                //#!! java channel 注册 并将 netty channel 与 java channel 绑定
+                //#oy: java channel 注册 并将 netty channel 与 java channel 绑定
                 // 注册java nio 时,把netty channel attach 到 selector上
                 selectionKey = javaChannel().register(eventLoop().selector, 0, this);
                 return;
@@ -419,7 +419,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     }
 
     /**
-     * 注册java nio 读事件
+     * #oy: 注册java nio 读事件
      * @throws Exception
      */
     @Override
@@ -431,7 +431,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         }
 
         readPending = true;
-
+        //#oy: 研究 java nio api
         final int interestOps = selectionKey.interestOps();
         if ((interestOps & readInterestOp) == 0) {
             selectionKey.interestOps(interestOps | readInterestOp);

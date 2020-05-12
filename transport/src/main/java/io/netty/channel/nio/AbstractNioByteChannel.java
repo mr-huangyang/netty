@@ -105,7 +105,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
         }
 
         /**
-         * 真正的读取网络数据
+         * #oy: 真正的读取网络数据
          */
         @Override
         public final void read() {
@@ -119,12 +119,12 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
             ByteBuf byteBuf = null;
             boolean close = false;
             try {
-                // 理解这一段程序，读取网络数据是过程
+                //#oy: 理解这一段程序，读取网络数据是过程
                 do {
                     //分配内存
                     byteBuf = allocHandle.allocate(allocator);
 
-                    // ### 读取网络字节
+                    // #oy: 读取网络字节,记录读取的字节数
                     allocHandle.lastBytesRead(doReadBytes(byteBuf));
 
                     if (allocHandle.lastBytesRead() <= 0) {
@@ -137,10 +137,10 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
 
                     allocHandle.incMessagesRead(1);
                     readPending = false;
-                    //读取一次数据后，将数据在pipeline中传递,从 head context 开始, PooledUnsafeDirectByteBuf
+                    //#oy: 读取一次数据后，将数据在pipeline中传递,从 head context 开始, PooledUnsafeDirectByteBuf
                     pipeline.fireChannelRead(byteBuf);
                     byteBuf = null;
-                } while (allocHandle.continueReading());
+                } while (allocHandle.continueReading()); /** {@link io.netty.channel.MaxMessagesRecvByteBufAllocator} */
 
                 allocHandle.readComplete();
 
@@ -160,7 +160,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
                 //
                 // See https://github.com/netty/netty/issues/2254
 
-                // #!! 设置不自动读取数据,流量控制的关键
+                // #oy: 设置不自动读取数据,流量控制的关键
                 if (!readPending && !config.isAutoRead()) {
                     removeReadOp();
                 }

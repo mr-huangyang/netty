@@ -340,7 +340,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             return new DefaultChannelPromise(channel, GlobalEventExecutor.INSTANCE).setFailure(t);
         }
 
-        //绑定channel 到 event loop ,最终是绑定到java nio api ***********
+        // #oy: 绑定channel 到 event loop ,最终是绑定到java nio api ***********
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {
