@@ -46,8 +46,9 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  * <li>{@link #getUserDefinedWritability(int)} and {@link #setUserDefinedWritability(int, boolean)}</li>
  * </ul>
  * </p>
- * ###: 注意此类可能会导致内存溢出
- *      由于ChannelOutboundBuffer是无界的链表，当应用层写入数据的速度 > Socket的发送速度时，会导致ChannelOutboundBuffer无限增长，产生OOM
+ * #oy-w: 注意此类可能会导致内存溢出
+ *      1:由于ChannelOutboundBuffer是无界的链表，当应用层写入数据的速度 > Socket的发送速度时，会导致ChannelOutboundBuffer无限增长，产生OOM
+ *      2: 必须设置合适的水位与流控
  */
 public final class ChannelOutboundBuffer {
 

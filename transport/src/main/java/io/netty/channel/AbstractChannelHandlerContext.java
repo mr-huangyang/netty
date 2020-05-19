@@ -380,6 +380,7 @@ abstract class AbstractChannelHandlerContext extends DefaultAttributeMap
         if (invokeHandler()) {
             try {
                 // 从 head context 开始 head context调用自身的fireChannelRead方法
+                // head or tail context handler()方法返回它们自己
                 ((ChannelInboundHandler) handler()).channelRead(this, msg);
             } catch (Throwable t) {
                 notifyHandlerException(t);
