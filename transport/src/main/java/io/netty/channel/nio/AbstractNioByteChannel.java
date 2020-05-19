@@ -105,7 +105,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
         }
 
         /**
-         * #oy: 真正的读取网络数据
+         * #oy-r: 真正的读取网络数据
          */
         @Override
         public final void read() {

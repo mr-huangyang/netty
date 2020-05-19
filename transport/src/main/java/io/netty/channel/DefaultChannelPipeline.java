@@ -1259,6 +1259,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
 
     /**
      * marked as outbound
+     *  head context handle in / out
      */
     final class HeadContext extends AbstractChannelHandlerContext
             implements ChannelOutboundHandler, ChannelInboundHandler {
