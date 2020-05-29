@@ -322,7 +322,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
             final int pageSize = this.pageSize;
 
             freeBytes -= pageSize;
-
+            //初始化 page
             int subpageIdx = subpageIdx(id);
             PoolSubpage<T> subpage = subpages[subpageIdx];
             if (subpage == null) {

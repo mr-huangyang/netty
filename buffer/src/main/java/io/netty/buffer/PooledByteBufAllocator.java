@@ -260,6 +260,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
     protected ByteBuf newDirectBuffer(int initialCapacity, int maxCapacity) {
         //#oy-memory 每个线程有自己的缓存
         PoolThreadCache cache = threadCache.get();
+        //分配器初始化时，会生成一定数量的 pool arena
         PoolArena<ByteBuffer> directArena = cache.directArena;
 
         //分配bytebuf
@@ -350,6 +351,10 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
 
     final class PoolThreadLocalCache extends FastThreadLocal<PoolThreadCache> {
 
+        /**
+         * 初始化时 ，会分配一个 pool arena
+         * @return
+         */
         @Override
         protected synchronized PoolThreadCache initialValue() {
             final PoolArena<byte[]> heapArena = leastUsedArena(heapArenas);

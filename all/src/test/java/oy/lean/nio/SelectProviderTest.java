@@ -29,7 +29,7 @@ public class SelectProviderTest {
     @Test
     public void test_or(){
         int c = 17 , b = 5 , d = 22;
-        int a = c | b  | d;
+        int a = c | b  ;
         System.out.println(a & c);
         System.out.println(a & b);
     }

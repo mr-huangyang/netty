@@ -28,6 +28,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.lang.Math.max;
 
+/**
+ * #oy-m: 内存结构的主要类
+ * <a href="https://gsmtoday.github.io/2017/09/03/netty-memory-pool-md/"></>
+ * <a href="https://segmentfault.com/a/1190000021444859"></>
+ *
+ * @param <T>
+ */
 abstract class PoolArena<T> implements PoolArenaMetric {
     static final boolean HAS_UNSAFE = PlatformDependent.hasUnsafe();
 
@@ -88,13 +95,13 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         this.chunkSize = chunkSize;
         subpageOverflowMask = ~(pageSize - 1);
         tinySubpagePools = newSubpagePoolArray(numTinySubpagePools);
-        for (int i = 0; i < tinySubpagePools.length; i ++) {
+        for (int i = 0; i < tinySubpagePools.length; i++) {
             tinySubpagePools[i] = newSubpagePoolHead(pageSize);
         }
 
         numSmallSubpagePools = pageShifts - 9;
         smallSubpagePools = newSubpagePoolArray(numSmallSubpagePools);
-        for (int i = 0; i < smallSubpagePools.length; i ++) {
+        for (int i = 0; i < smallSubpagePools.length; i++) {
             smallSubpagePools[i] = newSubpagePoolHead(pageSize);
         }
 
@@ -151,7 +158,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         int i = normCapacity >>> 10;
         while (i != 0) {
             i >>>= 1;
-            tableIdx ++;
+            tableIdx++;
         }
         return tableIdx;
     }
@@ -163,10 +170,20 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
     // normCapacity < 512
     static boolean isTiny(int normCapacity) {
+        //为什么这么计算 ？速度快？
+        // 0XFFFFFE00 == 11111111111111111111111000000000
+                                    // 512 ==  1000000000
         return (normCapacity & 0xFFFFFE00) == 0;
     }
 
+    /**
+     * #oy-m: 分配内存执行函数
+     * @param cache
+     * @param buf
+     * @param reqCapacity
+     */
     private void allocate(PoolThreadCache cache, PooledByteBuf<T> buf, final int reqCapacity) {
+        //规范内存大小
         final int normCapacity = normalizeCapacity(reqCapacity);
         if (isTinyOrSmall(normCapacity)) { // capacity < pageSize
             int tableIdx;
@@ -227,8 +244,8 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
     private synchronized void allocateNormal(PooledByteBuf<T> buf, int reqCapacity, int normCapacity) {
         if (q050.allocate(buf, reqCapacity, normCapacity) || q025.allocate(buf, reqCapacity, normCapacity) ||
-            q000.allocate(buf, reqCapacity, normCapacity) || qInit.allocate(buf, reqCapacity, normCapacity) ||
-            q075.allocate(buf, reqCapacity, normCapacity)) {
+                q000.allocate(buf, reqCapacity, normCapacity) || qInit.allocate(buf, reqCapacity, normCapacity) ||
+                q075.allocate(buf, reqCapacity, normCapacity)) {
             ++allocationsNormal;
             return;
         }
@@ -277,17 +294,17 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         final boolean destroyChunk;
         synchronized (this) {
             switch (sizeClass) {
-            case Normal:
-                ++deallocationsNormal;
-                break;
-            case Small:
-                ++deallocationsSmall;
-                break;
-            case Tiny:
-                ++deallocationsTiny;
-                break;
-            default:
-                throw new Error();
+                case Normal:
+                    ++deallocationsNormal;
+                    break;
+                case Small:
+                    ++deallocationsSmall;
+                    break;
+                case Tiny:
+                    ++deallocationsTiny;
+                    break;
+                default:
+                    throw new Error();
             }
             destroyChunk = !chunk.parent.free(chunk, handle);
         }
@@ -297,6 +314,11 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         }
     }
 
+    /**
+     * 从 tiny or small subpage 数组中查询 sub page
+     * @param elemSize
+     * @return
+     */
     PoolSubpage<T> findSubpagePoolHead(int elemSize) {
         int tableIdx;
         PoolSubpage<T>[] table;
@@ -308,7 +330,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             elemSize >>>= 10;
             while (elemSize != 0) {
                 elemSize >>>= 1;
-                tableIdx ++;
+                tableIdx++;
             }
             table = smallSubpagePools;
         }
@@ -328,13 +350,13 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             // Doubled
 
             int normalizedCapacity = reqCapacity;
-            normalizedCapacity --;
-            normalizedCapacity |= normalizedCapacity >>>  1;
-            normalizedCapacity |= normalizedCapacity >>>  2;
-            normalizedCapacity |= normalizedCapacity >>>  4;
-            normalizedCapacity |= normalizedCapacity >>>  8;
+            normalizedCapacity--;
+            normalizedCapacity |= normalizedCapacity >>> 1;
+            normalizedCapacity |= normalizedCapacity >>> 2;
+            normalizedCapacity |= normalizedCapacity >>> 4;
+            normalizedCapacity |= normalizedCapacity >>> 8;
             normalizedCapacity |= normalizedCapacity >>> 16;
-            normalizedCapacity ++;
+            normalizedCapacity++;
 
             if (normalizedCapacity < 0) {
                 normalizedCapacity >>>= 1;
@@ -431,13 +453,13 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
     private static List<PoolSubpageMetric> subPageMetricList(PoolSubpage<?>[] pages) {
         List<PoolSubpageMetric> metrics = new ArrayList<PoolSubpageMetric>();
-        for (int i = 0; i < pages.length; i ++) {
+        for (int i = 0; i < pages.length; i++) {
             PoolSubpage<?> head = pages[i];
             if (head.next == head) {
                 continue;
             }
             PoolSubpage<?> s = head.next;
-            for (;;) {
+            for (; ; ) {
                 metrics.add(s);
                 s = s.next;
                 if (s == head) {
@@ -507,7 +529,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     }
 
     @Override
-    public  long numActiveAllocations() {
+    public long numActiveAllocations() {
         long val = allocationsTiny.value() + allocationsSmall.value() + allocationsHuge.value()
                 - deallocationsHuge.value();
         synchronized (this) {
@@ -545,7 +567,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         long val = activeBytesHuge.value();
         synchronized (this) {
             for (int i = 0; i < chunkListMetrics.size(); i++) {
-                for (PoolChunkMetric m: chunkListMetrics.get(i)) {
+                for (PoolChunkMetric m : chunkListMetrics.get(i)) {
                     val += m.chunkSize();
                 }
             }
@@ -554,42 +576,46 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     }
 
     protected abstract PoolChunk<T> newChunk(int pageSize, int maxOrder, int pageShifts, int chunkSize);
+
     protected abstract PoolChunk<T> newUnpooledChunk(int capacity);
+
     protected abstract PooledByteBuf<T> newByteBuf(int maxCapacity);
+
     protected abstract void memoryCopy(T src, int srcOffset, T dst, int dstOffset, int length);
+
     protected abstract void destroyChunk(PoolChunk<T> chunk);
 
     @Override
     public synchronized String toString() {
         StringBuilder buf = new StringBuilder()
-            .append("Chunk(s) at 0~25%:")
-            .append(StringUtil.NEWLINE)
-            .append(qInit)
-            .append(StringUtil.NEWLINE)
-            .append("Chunk(s) at 0~50%:")
-            .append(StringUtil.NEWLINE)
-            .append(q000)
-            .append(StringUtil.NEWLINE)
-            .append("Chunk(s) at 25~75%:")
-            .append(StringUtil.NEWLINE)
-            .append(q025)
-            .append(StringUtil.NEWLINE)
-            .append("Chunk(s) at 50~100%:")
-            .append(StringUtil.NEWLINE)
-            .append(q050)
-            .append(StringUtil.NEWLINE)
-            .append("Chunk(s) at 75~100%:")
-            .append(StringUtil.NEWLINE)
-            .append(q075)
-            .append(StringUtil.NEWLINE)
-            .append("Chunk(s) at 100%:")
-            .append(StringUtil.NEWLINE)
-            .append(q100)
-            .append(StringUtil.NEWLINE)
-            .append("tiny subpages:");
+                .append("Chunk(s) at 0~25%:")
+                .append(StringUtil.NEWLINE)
+                .append(qInit)
+                .append(StringUtil.NEWLINE)
+                .append("Chunk(s) at 0~50%:")
+                .append(StringUtil.NEWLINE)
+                .append(q000)
+                .append(StringUtil.NEWLINE)
+                .append("Chunk(s) at 25~75%:")
+                .append(StringUtil.NEWLINE)
+                .append(q025)
+                .append(StringUtil.NEWLINE)
+                .append("Chunk(s) at 50~100%:")
+                .append(StringUtil.NEWLINE)
+                .append(q050)
+                .append(StringUtil.NEWLINE)
+                .append("Chunk(s) at 75~100%:")
+                .append(StringUtil.NEWLINE)
+                .append(q075)
+                .append(StringUtil.NEWLINE)
+                .append("Chunk(s) at 100%:")
+                .append(StringUtil.NEWLINE)
+                .append(q100)
+                .append(StringUtil.NEWLINE)
+                .append("tiny subpages:");
         appendPoolSubPages(buf, tinySubpagePools);
         buf.append(StringUtil.NEWLINE)
-           .append("small subpages:");
+                .append("small subpages:");
         appendPoolSubPages(buf, smallSubpagePools);
         buf.append(StringUtil.NEWLINE);
 
@@ -597,7 +623,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     }
 
     private static void appendPoolSubPages(StringBuilder buf, PoolSubpage<?>[] subpages) {
-        for (int i = 0; i < subpages.length; i ++) {
+        for (int i = 0; i < subpages.length; i++) {
             PoolSubpage<?> head = subpages[i];
             if (head.next == head) {
                 continue;
@@ -607,7 +633,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
                     .append(i)
                     .append(": ");
             PoolSubpage<?> s = head.next;
-            for (;;) {
+            for (; ; ) {
                 buf.append(s);
                 s = s.next;
                 if (s == head) {
