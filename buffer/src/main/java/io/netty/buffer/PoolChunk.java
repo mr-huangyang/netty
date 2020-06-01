@@ -99,15 +99,21 @@ package io.netty.buffer;
  * memoryMap[id]= (depth_of_id, x)
  * where as per convention defined above
  * the second value (i.e, x) indicates that the first node which is free to be allocated is at depth x (from root)
+ * <br/>
+ * Ref:
+ *  <a href="https://juejin.im/post/5ca4a5e051882543b16e33aa">chunk1</a>
+ *
  */
 final class PoolChunk<T> implements PoolChunkMetric {
 
     private static final int INTEGER_SIZE_MINUS_ONE = Integer.SIZE - 1;
 
     final PoolArena<T> arena;
+    //分配的内存对象
     final T memory;
     final boolean unpooled;
 
+    //memoryMap depthMap 存入的是树的层号
     private final byte[] memoryMap;
     private final byte[] depthMap;
     private final PoolSubpage<T>[] subpages;

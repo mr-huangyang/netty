@@ -22,6 +22,12 @@ import io.netty.util.Recycler.Handle;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+/**
+ * 此类相是一个内存操作接口。操作chunk封装的memory
+ * pool chunk 负责申请内存与管理， 此类负责操作 chunk  内存
+ * #oy-chunk
+ * @param <T>
+ */
 abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
 
     /**
@@ -32,7 +38,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
     protected PoolChunk<T> chunk;
     protected long handle;
     /**
-     * 真正的内存类型
+     * #oy-chunk: 真正的内存类型
      */
     protected T memory;
     protected int offset;

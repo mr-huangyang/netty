@@ -143,7 +143,15 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
     abstract boolean isDirect();
 
+    /**
+     * #oy-m: 分配内存 返回byte buf ，底层操作 nio byte buf
+     * @param cache
+     * @param reqCapacity
+     * @param maxCapacity
+     * @return
+     */
     PooledByteBuf<T> allocate(PoolThreadCache cache, int reqCapacity, int maxCapacity) {
+        //获取一个可用的buf对象
         PooledByteBuf<T> buf = newByteBuf(maxCapacity);
         allocate(cache, buf, reqCapacity);
         return buf;
@@ -255,6 +263,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         long handle = c.allocate(normCapacity);
         ++allocationsNormal;
         assert handle > 0;
+        //handle 分配的内存位置下标， memory map
         c.initBuf(buf, handle, reqCapacity);
         qInit.add(c);
     }
@@ -698,8 +707,9 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
         @Override
         protected PoolChunk<ByteBuffer> newChunk(int pageSize, int maxOrder, int pageShifts, int chunkSize) {
+            //用一块指定大小的内存初始化 chunk = 16M
             return new PoolChunk<ByteBuffer>(
-                    this, allocateDirect(chunkSize),
+                    this,   allocateDirect(chunkSize),
                     pageSize, maxOrder, pageShifts, chunkSize);
         }
 

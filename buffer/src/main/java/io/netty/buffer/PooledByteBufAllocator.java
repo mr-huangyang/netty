@@ -266,6 +266,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
         //分配bytebuf
         ByteBuf buf;
         if (directArena != null) {
+            //#oy-m : 创建byte buf
             buf = directArena.allocate(cache, initialCapacity, maxCapacity);
         } else {
             if (PlatformDependent.hasUnsafe()) {
