@@ -136,18 +136,18 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
     }
 
     /**
-     * #!! 接收外部连接请求，创建NioSocketChannel
+     * #oy-server: 接收外部连接请求，创建NioSocketChannel
      * @param buf
      * @return
      * @throws Exception
      */
     @Override
     protected int doReadMessages(List<Object> buf) throws Exception {
-        SocketChannel ch = javaChannel().accept();
 
+        SocketChannel ch = javaChannel().accept();
         try {
             if (ch != null) {
-                //创建 nio socket channel
+                //创建 对client 的 nio socket channel 并绑定 nio channel
                 buf.add(new NioSocketChannel(this, ch));
                 return 1;
             }
