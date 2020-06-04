@@ -116,7 +116,14 @@ final class PoolChunk<T> implements PoolChunkMetric {
     //memoryMap depthMap 存入的是树的层号
     private final byte[] memoryMap;
     private final byte[] depthMap;
+
+
+    /**
+     * 存储创建的page: 16M 以8k为-个page ,最多2048个
+     */
     private final PoolSubpage<T>[] subpages;
+
+
     /** Used to determine if the requested capacity is equal to or greater than pageSize. */
     private final int subpageOverflowMask;
     private final int pageSize;
@@ -156,6 +163,8 @@ final class PoolChunk<T> implements PoolChunkMetric {
         // Generate the memory map.
         memoryMap = new byte[maxSubpageAllocs << 1];
         depthMap = new byte[memoryMap.length];
+
+        //** 为什么从 1 开始 ? 利用下标位移运算快速定位到树某层的首位节点
         int memoryMapIndex = 1;
         for (int d = 0; d <= maxOrder; ++ d) { // move down the tree one level at a time
             int depth = 1 << d;
@@ -388,6 +397,13 @@ final class PoolChunk<T> implements PoolChunkMetric {
         initBufWithSubpage(buf, handle, bitmapIdx(handle), reqCapacity);
     }
 
+    /**
+     * #oy-memory: 用page 构造 byte buf
+     * @param buf
+     * @param handle
+     * @param bitmapIdx
+     * @param reqCapacity
+     */
     private void initBufWithSubpage(PooledByteBuf<T> buf, long handle, int bitmapIdx, int reqCapacity) {
         assert bitmapIdx != 0;
 

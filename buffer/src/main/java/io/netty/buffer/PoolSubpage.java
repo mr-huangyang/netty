@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright 2012 The Netty Project
  *
  * The Netty Project licenses this file to you under the Apache License,
@@ -16,6 +16,13 @@
 
 package io.netty.buffer;
 
+/**
+ * page之间形成一个环形连表
+ * <br/>
+ * Ref: <a href="https://www.cnblogs.com/wuzhenzhao/p/11304496.html">文章-1</a>
+ *
+ * @param <T>
+ */
 final class PoolSubpage<T> implements PoolSubpageMetric {
 
     final PoolChunk<T> chunk;

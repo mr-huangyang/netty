@@ -54,6 +54,10 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     final int chunkSize;
     final int subpageOverflowMask;
     final int numSmallSubpagePools;
+
+    /**
+     * 小内存分配共用 page: 先分配10字节，再分配20字节 ，这2次分配使用的同一次page对象
+     */
     private final PoolSubpage<T>[] tinySubpagePools;
     private final PoolSubpage<T>[] smallSubpagePools;
 
@@ -145,6 +149,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
     /**
      * #oy-m: 分配内存 返回byte buf ，底层操作 nio byte buf
+     *
      * @param cache
      * @param reqCapacity
      * @param maxCapacity
@@ -180,12 +185,13 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     static boolean isTiny(int normCapacity) {
         //为什么这么计算 ？速度快？
         // 0XFFFFFE00 == 11111111111111111111111000000000
-                                    // 512 ==  1000000000
+        // 512 ==  1000000000
         return (normCapacity & 0xFFFFFE00) == 0;
     }
 
     /**
      * #oy-m: 分配内存执行函数
+     *
      * @param cache
      * @param buf
      * @param reqCapacity
@@ -220,6 +226,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
              * {@link PoolChunk#free(long)} may modify the doubly linked list as well.
              */
             synchronized (head) {
+                //同类型的大小，直接从一个连表中定位到节点，不通过搜索节点树
                 final PoolSubpage<T> s = head.next;
                 if (s != head) {
                     assert s.doNotDestroy && s.elemSize == normCapacity;
@@ -325,6 +332,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
     /**
      * 从 tiny or small subpage 数组中查询 sub page
+     * 这里的运算逻辑是什么？？
      * @param elemSize
      * @return
      */
@@ -709,7 +717,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         protected PoolChunk<ByteBuffer> newChunk(int pageSize, int maxOrder, int pageShifts, int chunkSize) {
             //用一块指定大小的内存初始化 chunk = 16M
             return new PoolChunk<ByteBuffer>(
-                    this,   allocateDirect(chunkSize),
+                    this, allocateDirect(chunkSize),
                     pageSize, maxOrder, pageShifts, chunkSize);
         }
 

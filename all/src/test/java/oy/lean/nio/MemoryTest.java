@@ -5,8 +5,11 @@ import io.netty.buffer.PooledByteBufAllocator;
 
 public class MemoryTest {
     public static void main(String[] args) {
-        final ByteBuf buffer = PooledByteBufAllocator.DEFAULT.buffer(250000);
+        final ByteBuf buffer = PooledByteBufAllocator.DEFAULT.buffer(250);
+        final ByteBuf buffer0 = PooledByteBufAllocator.DEFAULT.buffer(251);
         buffer.writeByte(10);
+        buffer0.writeByte(10);
         buffer.release();
+        buffer0.release();
     }
 }
