@@ -126,6 +126,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
     /** Used to determine if the requested capacity is equal to or greater than pageSize. */
     private final int subpageOverflowMask;
+    //default  8k
     private final int pageSize;
     private final int pageShifts;
     private final int maxOrder;
@@ -218,6 +219,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
     long allocate(int normCapacity) {
         if ((normCapacity & subpageOverflowMask) != 0) { // >= pageSize
+            // > pagesize 的直接定位到内存节点
             return allocateRun(normCapacity);
         } else {
             return allocateSubpage(normCapacity);
@@ -447,6 +449,11 @@ final class PoolChunk<T> implements PoolChunkMetric {
         return shift * runLength(id);
     }
 
+    /**
+     * 计算 page 要在座的位置
+     * @param memoryMapIdx
+     * @return
+     */
     private int subpageIdx(int memoryMapIdx) {
         return memoryMapIdx ^ maxSubpageAllocs; // remove highest set bit, to get offset
     }

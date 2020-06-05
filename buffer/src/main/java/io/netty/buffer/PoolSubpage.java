@@ -1,12 +1,12 @@
 /**
  * Copyright 2012 The Netty Project
- *
+ * <p>
  * The Netty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
@@ -18,8 +18,10 @@ package io.netty.buffer;
 
 /**
  * page之间形成一个环形连表
- * <br/>
- * Ref: <a href="https://www.cnblogs.com/wuzhenzhao/p/11304496.html">文章-1</a>
+ * <ul>
+ *     <li><a href="https://www.cnblogs.com/wuzhenzhao/p/11304496.html">文章-1</a></li>
+ *     <li><a href="https://blog.csdn.net/u010412719/article/details/78242224">文章-2</a></li>
+ * </ul>
  *
  * @param <T>
  */
@@ -44,7 +46,9 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
     // TODO: Test if adding padding helps under contention
     //private long pad0, pad1, pad2, pad3, pad4, pad5, pad6, pad7;
 
-    /** Special constructor that creates a linked list head */
+    /**
+     * Special constructor that creates a linked list head
+     */
     PoolSubpage(int pageSize) {
         chunk = null;
         memoryMapIdx = -1;
@@ -71,10 +75,10 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
             nextAvail = 0;
             bitmapLength = maxNumElems >>> 6;
             if ((maxNumElems & 63) != 0) {
-                bitmapLength ++;
+                bitmapLength++;
             }
 
-            for (int i = 0; i < bitmapLength; i ++) {
+            for (int i = 0; i < bitmapLength; i++) {
                 bitmap[i] = 0;
             }
         }
@@ -99,7 +103,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         assert (bitmap[q] >>> r & 1) == 0;
         bitmap[q] |= 1L << r;
 
-        if (-- numAvail == 0) {
+        if (--numAvail == 0) {
             removeFromPool();
         }
 
@@ -108,7 +112,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
 
     /**
      * @return {@code true} if this subpage is in use.
-     *         {@code false} if this subpage is not used by its chunk and thus it's OK to be released.
+     * {@code false} if this subpage is not used by its chunk and thus it's OK to be released.
      */
     boolean free(PoolSubpage<T> head, int bitmapIdx) {
         if (elemSize == 0) {
@@ -121,7 +125,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
 
         setNextAvail(bitmapIdx);
 
-        if (numAvail ++ == 0) {
+        if (numAvail++ == 0) {
             addToPool(head);
             return true;
         }
@@ -174,7 +178,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
     private int findNextAvail() {
         final long[] bitmap = this.bitmap;
         final int bitmapLength = this.bitmapLength;
-        for (int i = 0; i < bitmapLength; i ++) {
+        for (int i = 0; i < bitmapLength; i++) {
             long bits = bitmap[i];
             if (~bits != 0) {
                 return findNextAvail0(i, bits);
@@ -187,7 +191,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         final int maxNumElems = this.maxNumElems;
         final int baseVal = i << 6;
 
-        for (int j = 0; j < 64; j ++) {
+        for (int j = 0; j < 64; j++) {
             if ((bits & 1) == 0) {
                 int val = baseVal | j;
                 if (val < maxNumElems) {
@@ -212,7 +216,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         }
 
         return String.valueOf('(') + memoryMapIdx + ": " + (maxNumElems - numAvail) + '/' + maxNumElems +
-               ", offset: " + runOffset + ", length: " + pageSize + ", elemSize: " + elemSize + ')';
+                ", offset: " + runOffset + ", length: " + pageSize + ", elemSize: " + elemSize + ')';
     }
 
     @Override

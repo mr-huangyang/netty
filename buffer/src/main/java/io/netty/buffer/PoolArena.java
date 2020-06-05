@@ -30,8 +30,10 @@ import static java.lang.Math.max;
 
 /**
  * #oy-m: 内存结构的主要类
- * <a href="https://gsmtoday.github.io/2017/09/03/netty-memory-pool-md/"></>
- * <a href="https://segmentfault.com/a/1190000021444859"></>
+ * <a href="https://gsmtoday.github.io/2017/09/03/netty-memory-pool-md/">文章-1</>
+ * <a href="https://segmentfault.com/a/1190000021444859">文章-2</>
+ * <a href="https://www.jianshu.com/p/50f902c57dd6">数字计算机表示-1</a>
+ * <a href="https://my.oschina.net/keking/blog/3079698">数字计算机表示-2</a>
  *
  * @param <T>
  */
@@ -184,8 +186,9 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     // normCapacity < 512
     static boolean isTiny(int normCapacity) {
         //为什么这么计算 ？速度快？
-        // 0XFFFFFE00 == 11111111111111111111111000000000
+        // 0xFFFFFE00 == -512 ?= 11111111111111111111111000000000（补码）
         // 512 ==  1000000000
+        // print 0xFFFFFE00 == -512 ？ 估计java会把16进制转换成的二进制，当作补码
         return (normCapacity & 0xFFFFFE00) == 0;
     }
 
