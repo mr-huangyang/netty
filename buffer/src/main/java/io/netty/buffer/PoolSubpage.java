@@ -28,15 +28,32 @@ package io.netty.buffer;
 final class PoolSubpage<T> implements PoolSubpageMetric {
 
     final PoolChunk<T> chunk;
+
     private final int memoryMapIdx;
+
+    /**
+     * 分配的内存偏移量:最终的内存地址是 memory.address + offset
+     */
     private final int runOffset;
+
+    /**
+     *
+     */
     private final int pageSize;
+
+    /**
+     * 内存使用标识
+     */
     private final long[] bitmap;
 
     PoolSubpage<T> prev;
     PoolSubpage<T> next;
 
     boolean doNotDestroy;
+
+    /**
+     * ??
+     */
     int elemSize;
     private int maxNumElems;
     private int bitmapLength;

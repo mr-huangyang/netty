@@ -74,7 +74,7 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
     }
 
     /**
-     * 内存地址
+     * 内存地址: 通过native 方法直接计算出memory内存地址
      */
     private void initMemoryAddress() {
         memoryAddress = PlatformDependent.directBufferAddress(memory) + offset;
@@ -82,6 +82,7 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
 
     @Override
     protected ByteBuffer newInternalNioBuffer(ByteBuffer memory) {
+        //为什么要copy一份 ？ 共享底层数据，position,limit等属性独立。避免多线程操作同一buf对象
         return memory.duplicate();
     }
 
@@ -225,8 +226,14 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
         return readBytes;
     }
 
+    /**
+     *
+     * @param index
+     * @param value
+     */
     @Override
     protected void _setByte(int index, int value) {
+        //通过native 方法直接操作内存
         UnsafeByteBufUtil.setByte(addr(index), (byte) value);
     }
 

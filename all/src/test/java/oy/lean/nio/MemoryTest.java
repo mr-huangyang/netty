@@ -7,7 +7,8 @@ import java.math.BigDecimal;
 
 public class MemoryTest {
     public static void main(String[] args) {
-        test2();
+//        test2();
+        test1();
     }
 
     private static void test1() {
