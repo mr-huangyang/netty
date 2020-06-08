@@ -103,6 +103,11 @@ package io.netty.buffer;
  * Ref:
  *  <a href="https://juejin.im/post/5ca4a5e051882543b16e33aa">chunk1</a>
  *
+ *  Q1: 内存如何管理？
+ *
+ *  Q2: 内存节点被分配后如何标识已分配，这一块内存如何与bytebuf绑定？
+ *
+ *
  */
 final class PoolChunk<T> implements PoolChunkMetric {
 
@@ -383,8 +388,12 @@ final class PoolChunk<T> implements PoolChunkMetric {
     }
 
     void initBuf(PooledByteBuf<T> buf, long handle, int reqCapacity) {
+
         int memoryMapIdx = memoryMapIdx(handle);
+
         int bitmapIdx = bitmapIdx(handle);
+
+        //通过 bitmapIdx区分 tinypage
         if (bitmapIdx == 0) {
             byte val = value(memoryMapIdx);
             assert val == unusable : String.valueOf(val);

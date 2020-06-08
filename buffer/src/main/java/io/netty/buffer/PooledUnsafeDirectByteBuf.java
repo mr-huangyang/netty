@@ -53,6 +53,8 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
 
     /**
      * #oy-memory: 用chunk构造 byte buf
+     * 1: 根据offset 确定内存位置
+     * 2: 调用父类init方法，设置属性值
      * @param chunk
      * @param handle
      * @param offset

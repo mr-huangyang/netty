@@ -248,6 +248,9 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             allocateNormal(buf, reqCapacity, normCapacity);
             return;
         }
+
+
+        // 处理正常情况下的内存分配
         if (normCapacity <= chunkSize) {
             if (cache.allocateNormal(this, buf, reqCapacity, normCapacity)) {
                 // was able to allocate out of the cache so move on
@@ -258,8 +261,17 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             // Huge allocations are never served via the cache so just call allocateHuge
             allocateHuge(buf, reqCapacity);
         }
+
+
+
     }
 
+    /**
+     * 分配标准内存
+     * @param buf
+     * @param reqCapacity
+     * @param normCapacity
+     */
     private synchronized void allocateNormal(PooledByteBuf<T> buf, int reqCapacity, int normCapacity) {
         if (q050.allocate(buf, reqCapacity, normCapacity) || q025.allocate(buf, reqCapacity, normCapacity) ||
                 q000.allocate(buf, reqCapacity, normCapacity) || qInit.allocate(buf, reqCapacity, normCapacity) ||
@@ -270,10 +282,13 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
         // Add a new chunk.
         PoolChunk<T> c = newChunk(pageSize, maxOrder, pageShifts, chunkSize);
+
+        //tiny page 与  page 返回的 handle 不一样:  handle代表 内存树节点号(>512) handle代表内存地址(< 512)
         long handle = c.allocate(normCapacity);
+
         ++allocationsNormal;
         assert handle > 0;
-        //handle 分配的内存位置下标， memory map
+
         c.initBuf(buf, handle, reqCapacity);
         qInit.add(c);
     }

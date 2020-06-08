@@ -39,6 +39,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
     protected long handle;
     /**
      * #oy-chunk: 真正的内存类型
+     * 用于构造java nio
      */
     protected T memory;
     protected int offset;
@@ -56,6 +57,15 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
         this.recyclerHandle = (Handle<PooledByteBuf<T>>) recyclerHandle;
     }
 
+    /**
+     *
+     * @param chunk
+     * @param handle
+     * @param offset buf关联内存段在连续内存中的偏移量
+     * @param length buf关联内存的长度
+     * @param maxLength buf关联内存的最大长度
+     * @param cache
+     */
     void init(PoolChunk<T> chunk, long handle, int offset, int length, int maxLength, PoolThreadCache cache) {
         assert handle >= 0;
         assert chunk != null;

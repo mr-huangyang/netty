@@ -37,7 +37,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
     private final int runOffset;
 
     /**
-     *
+     * page 分配的内存大小
      */
     private final int pageSize;
 
@@ -88,6 +88,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         doNotDestroy = true;
         this.elemSize = elemSize;
         if (elemSize != 0) {
+            //将首次请求的内存大小切分 pageSize
             maxNumElems = numAvail = pageSize / elemSize;
             nextAvail = 0;
             bitmapLength = maxNumElems >>> 6;

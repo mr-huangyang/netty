@@ -258,6 +258,12 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
         return toLeakAwareBuffer(buf);
     }
 
+    /**
+     * 分配直接内存
+     * @param initialCapacity
+     * @param maxCapacity
+     * @return
+     */
     @Override
     protected ByteBuf newDirectBuffer(int initialCapacity, int maxCapacity) {
         //#oy-memory 每个线程有自己的缓存
