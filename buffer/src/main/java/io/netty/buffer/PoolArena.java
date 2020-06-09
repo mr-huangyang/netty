@@ -158,7 +158,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
      * @return
      */
     PooledByteBuf<T> allocate(PoolThreadCache cache, int reqCapacity, int maxCapacity) {
-        //获取一个可用的buf对象
+        //获取一个可用的buf对象, buf是一个可回收对象
         PooledByteBuf<T> buf = newByteBuf(maxCapacity);
         allocate(cache, buf, reqCapacity);
         return buf;
