@@ -27,6 +27,9 @@ package io.netty.channel;
  * dropped down below the {@linkplain #low low water mark},
  * {@link Channel#isWritable()} will start to return
  * {@code true} again.
+ *
+ * {@link ChannelOutboundBuffer}
+ *
  */
 public final class WriteBufferWaterMark {
 

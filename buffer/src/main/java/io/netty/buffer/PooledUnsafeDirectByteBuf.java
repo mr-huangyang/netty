@@ -29,10 +29,14 @@ import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.ScatteringByteChannel;
 
 /**
- * nio channel read 默认对应的 byte buffer
+ * 1:nio channel read 默认对应的 byte buffer
+ * 2: 同时负责对象的创建维护
  */
 final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
 
+    /**
+     * 全局的回收器对象
+     */
     private static final Recycler<PooledUnsafeDirectByteBuf> RECYCLER = new Recycler<PooledUnsafeDirectByteBuf>() {
         @Override
         protected PooledUnsafeDirectByteBuf newObject(Handle<PooledUnsafeDirectByteBuf> handle) {
@@ -56,6 +60,7 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
      * #oy-memory: 用chunk构造 byte buf
      * 1: 根据offset 确定内存位置
      * 2: 调用父类init方法，设置属性值
+     *
      * @param chunk
      * @param handle
      * @param offset
@@ -230,7 +235,6 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
     }
 
     /**
-     *
      * @param index
      * @param value
      */
@@ -341,7 +345,7 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
 
     @Override
     public ByteBuffer[] nioBuffers(int index, int length) {
-        return new ByteBuffer[] { nioBuffer(index, length) };
+        return new ByteBuffer[]{nioBuffer(index, length)};
     }
 
     @Override
