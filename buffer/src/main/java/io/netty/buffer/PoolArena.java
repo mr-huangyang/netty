@@ -102,6 +102,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         subpageOverflowMask = ~(pageSize - 1);
         tinySubpagePools = newSubpagePoolArray(numTinySubpagePools);
         for (int i = 0; i < tinySubpagePools.length; i++) {
+            //创建 sub page ,每一个对象的上下节点默认是自身
             tinySubpagePools[i] = newSubpagePoolHead(pageSize);
         }
 
@@ -233,8 +234,10 @@ abstract class PoolArena<T> implements PoolArenaMetric {
                 final PoolSubpage<T> s = head.next;
                 if (s != head) {
                     assert s.doNotDestroy && s.elemSize == normCapacity;
+
                     long handle = s.allocate();
                     assert handle >= 0;
+
                     s.chunk.initBufWithSubpage(buf, handle, reqCapacity);
 
                     if (tiny) {

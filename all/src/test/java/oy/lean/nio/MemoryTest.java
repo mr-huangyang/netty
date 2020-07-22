@@ -11,13 +11,27 @@ public class MemoryTest {
     }
 
     private static void test1() {
-        final ByteBuf buffer = PooledByteBufAllocator.DEFAULT.buffer(250);
-        final ByteBuf buffer0 = PooledByteBufAllocator.DEFAULT.buffer(251);
+        final ByteBuf buffer = PooledByteBufAllocator.DEFAULT.buffer(510);
+        PooledByteBufAllocator.DEFAULT.buffer(510);
+        PooledByteBufAllocator.DEFAULT.buffer(510);
+        PooledByteBufAllocator.DEFAULT.buffer(510);
+        PooledByteBufAllocator.DEFAULT.buffer(510);
+        PooledByteBufAllocator.DEFAULT.buffer(510);
+        PooledByteBufAllocator.DEFAULT.buffer(510);
+        PooledByteBufAllocator.DEFAULT.buffer(510);
+        PooledByteBufAllocator.DEFAULT.buffer(510);
+        PooledByteBufAllocator.DEFAULT.buffer(510);
+        PooledByteBufAllocator.DEFAULT.buffer(510);
+        PooledByteBufAllocator.DEFAULT.buffer(510);
+        PooledByteBufAllocator.DEFAULT.buffer(510);
+        PooledByteBufAllocator.DEFAULT.buffer(510);
+        PooledByteBufAllocator.DEFAULT.buffer(510);
+        PooledByteBufAllocator.DEFAULT.buffer(510);
+        PooledByteBufAllocator.DEFAULT.buffer(510);
         buffer.writeByte(10);
-        buffer.writeByte(100);
+//        buffer.writeByte(11);
 //        buffer0.writeByte(10);
         buffer.release();
-        buffer0.release();
     }
 
     private static void test_pagesize() {

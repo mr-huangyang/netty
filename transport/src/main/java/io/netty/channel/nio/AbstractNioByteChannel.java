@@ -127,7 +127,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
                     byteBuf = allocHandle.allocate(allocator);
 
                     // #oy: 读取网络字节,记录读取的字节数
-                    allocHandle.lastBytesRead(doReadBytes(byteBuf));
+                    allocHandle.lastBytesRead(       doReadBytes(byteBuf)      );
 
                     if (allocHandle.lastBytesRead() <= 0) {
                         // nothing was read. release the buffer.

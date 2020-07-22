@@ -488,9 +488,9 @@ public abstract class AbstractTrafficShapingHandler extends ChannelDuplexHandler
                             + isHandlerActive(ctx));
                 }
 
-                //#!! :禁用自动读取
                 if (config.isAutoRead() && isHandlerActive(ctx)) {
 
+                    //#-oy: shape :禁用自动读取
                     config.setAutoRead(false);
                     ctx.attr(READ_SUSPENDED).set(true);
 

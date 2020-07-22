@@ -1319,6 +1319,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
 
         @Override
         public void read(ChannelHandlerContext ctx) {
+            //#-oy:read 开启读取数据，底层通过nio 注册读事件
             unsafe.beginRead();
         }
 

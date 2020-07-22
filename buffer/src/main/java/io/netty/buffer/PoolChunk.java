@@ -125,6 +125,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
     /**
      * 存储创建的page: 16M 以8k为-个page ,最多2048个
+     * 每一个 sub page 又被下半场分成若干块
      */
     private final PoolSubpage<T>[] subpages;
 
