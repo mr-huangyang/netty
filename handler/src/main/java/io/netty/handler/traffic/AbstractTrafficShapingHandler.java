@@ -453,8 +453,11 @@ public abstract class AbstractTrafficShapingHandler extends ChannelDuplexHandler
                     }
                 }
                 ctx.attr(READ_SUSPENDED).set(false);
+
+                //#oy-shape : 设置自动读，并重新注册读事件
                 config.setAutoRead(true);
                 ctx.channel().read();
+
             }
             if (logger.isDebugEnabled()) {
                 logger.debug("Unsupsend final status => " + config.isAutoRead() + ':'
