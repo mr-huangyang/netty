@@ -83,7 +83,7 @@ public class WebSocketClient {
             b.group(group)
                     .channel(NioSocketChannel.class)
                     .option(ChannelOption.TCP_NODELAY, true)
-                    .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 1000)
+                    .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000)
                     .handler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel ch) {
@@ -131,18 +131,18 @@ public class WebSocketClient {
     }
 
     public static void main(String[] args) {
-        System.setProperty("http.proxySet", "true");
-        System.setProperty("http.proxyHost", "127.0.0.1");
-        System.setProperty("http.proxyPort", "1086");
-
-        System.setProperty("proxySet", "true");
-        System.setProperty("socksProxyHost", "127.0.0.1");
-        System.setProperty("socksProxyPort", "1086");
+//        System.setProperty("http.proxySet", "true");
+//        System.setProperty("http.proxyHost", "127.0.0.1");
+//        System.setProperty("http.proxyPort", "1086");
+//
+//        System.setProperty("proxySet", "true");
+//        System.setProperty("socksProxyHost", "127.0.0.1");
+//        System.setProperty("socksProxyPort", "1086");
 
 //        okex();
 //        zb();
 //        coinex();
-        bitfinex();
+//        bitfinex();
 //        yex();
 //        lbank();
 //        gateio();
@@ -153,7 +153,7 @@ public class WebSocketClient {
 //        String tt = "{'event':'addChannel','channel':'ok_sub_spot_btc_usdt_deals'}";
         String tt = "{'event':'addChannel','channel':'ok_sub_spot_bcn_btc_deals'}";
 
-        String ws = "wss://real.okex.com:10441/websocket";
+        String ws = "wss://real.okex.com:10442/ws/v3";
         WebSocketClient.newWebSocket(ws, new Listener(tt));
     }
 
