@@ -74,6 +74,7 @@ class WebSocketServerProtocolHandshakeHandler extends ChannelInboundHandlerAdapt
                         if (!future.isSuccess()) {
                             ctx.fireExceptionCaught(future.cause());
                         } else {
+                            //#!! 发送握手成功事件
                             ctx.fireUserEventTriggered(
                                     WebSocketServerProtocolHandler.ServerHandshakeStateEvent.HANDSHAKE_COMPLETE);
                         }
