@@ -81,7 +81,8 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         }
 
         if (executor == null) {
-            // 一个线程执行一个任务: 关注这个类，能过此类为每个 eventloop创建线程
+            //#oy-thread  一个线程执行一个任务: 关注这个类，能过此类为每个 eventloop创建线程
+            // ref -> FastThreadLocalThread
             executor = new ThreadPerTaskExecutor(newDefaultThreadFactory());
         }
         //初始化子类 EventExecutor
@@ -90,7 +91,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         for (int i = 0; i < nThreads; i ++) {
             boolean success = false;
             try {
-                // **** newChild由具体子类实现,EventExecutor是基类,所有子类共享一个executor
+                // #oy-thread **** newChild由具体子类实现,EventExecutor是基类,所有子类共享一个executor
                 //共享的executor.execute()方法调用一次，生成一个线程并启动
                 children[i] = newChild(executor, args);
                 success = true;

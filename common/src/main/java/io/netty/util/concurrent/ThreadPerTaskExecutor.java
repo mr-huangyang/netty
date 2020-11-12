@@ -30,6 +30,7 @@ public final class ThreadPerTaskExecutor implements Executor {
 
     @Override
     public void execute(Runnable command) {
+        //#oy-thread 创建线程，并启动
         threadFactory.newThread(command).start();
     }
 }

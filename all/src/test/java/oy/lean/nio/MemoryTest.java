@@ -12,22 +12,22 @@ public class MemoryTest {
 
     private static void test1() {
         final ByteBuf buffer = PooledByteBufAllocator.DEFAULT.buffer(510);
-        PooledByteBufAllocator.DEFAULT.buffer(510);
-        PooledByteBufAllocator.DEFAULT.buffer(510);
-        PooledByteBufAllocator.DEFAULT.buffer(510);
-        PooledByteBufAllocator.DEFAULT.buffer(510);
-        PooledByteBufAllocator.DEFAULT.buffer(510);
-        PooledByteBufAllocator.DEFAULT.buffer(510);
-        PooledByteBufAllocator.DEFAULT.buffer(510);
-        PooledByteBufAllocator.DEFAULT.buffer(510);
-        PooledByteBufAllocator.DEFAULT.buffer(510);
-        PooledByteBufAllocator.DEFAULT.buffer(510);
-        PooledByteBufAllocator.DEFAULT.buffer(510);
-        PooledByteBufAllocator.DEFAULT.buffer(510);
-        PooledByteBufAllocator.DEFAULT.buffer(510);
-        PooledByteBufAllocator.DEFAULT.buffer(510);
-        PooledByteBufAllocator.DEFAULT.buffer(510);
-        PooledByteBufAllocator.DEFAULT.buffer(510);
+//        PooledByteBufAllocator.DEFAULT.buffer(510);
+//        PooledByteBufAllocator.DEFAULT.buffer(510);
+//        PooledByteBufAllocator.DEFAULT.buffer(510);
+//        PooledByteBufAllocator.DEFAULT.buffer(510);
+//        PooledByteBufAllocator.DEFAULT.buffer(510);
+//        PooledByteBufAllocator.DEFAULT.buffer(510);
+//        PooledByteBufAllocator.DEFAULT.buffer(510);
+//        PooledByteBufAllocator.DEFAULT.buffer(510);
+//        PooledByteBufAllocator.DEFAULT.buffer(510);
+//        PooledByteBufAllocator.DEFAULT.buffer(510);
+//        PooledByteBufAllocator.DEFAULT.buffer(510);
+//        PooledByteBufAllocator.DEFAULT.buffer(510);
+//        PooledByteBufAllocator.DEFAULT.buffer(510);
+//        PooledByteBufAllocator.DEFAULT.buffer(510);
+//        PooledByteBufAllocator.DEFAULT.buffer(510);
+//        PooledByteBufAllocator.DEFAULT.buffer(510);
         buffer.writeByte(10);
 //        buffer.writeByte(11) ;
 //        buffer0.writeByte(10);

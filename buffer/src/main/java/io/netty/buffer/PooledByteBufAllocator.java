@@ -41,6 +41,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
     private static final int DEFAULT_NUM_HEAP_ARENA;
     private static final int DEFAULT_NUM_DIRECT_ARENA;
 
+    //叶子节点的大小
     private static final int DEFAULT_PAGE_SIZE;
     private static final int DEFAULT_MAX_ORDER; // 8192 << 11 = 16 MiB per chunk
     private static final int DEFAULT_TINY_CACHE_SIZE;
@@ -273,7 +274,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
     }
 
     /**
-     * 分配直接内存
+     * #oy-memory 分配直接内存
      *
      * @param initialCapacity
      * @param maxCapacity
@@ -284,6 +285,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
 
         //#oy-memory 每个线程有自己的缓存
         PoolThreadCache cache = threadCache.get();
+
         //分配器初始化时，会生成一定数量的 pool arena
         PoolArena<ByteBuffer> directArena = cache.directArena;
 

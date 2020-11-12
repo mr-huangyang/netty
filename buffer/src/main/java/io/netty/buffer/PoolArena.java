@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static java.lang.Math.max;
 
 /**
- * #oy-m: 内存结构的主要类
+ * #oy-memory: 内存结构的主要类
  * <a href="https://gsmtoday.github.io/2017/09/03/netty-memory-pool-md/">文章-1</>
  * <a href="https://segmentfault.com/a/1190000021444859">文章-2</>
  * <a href="https://www.jianshu.com/p/50f902c57dd6">数字计算机表示-1</a>

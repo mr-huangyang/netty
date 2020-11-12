@@ -107,6 +107,7 @@ package io.netty.buffer;
  *
  *  Q2: 内存节点被分配后如何标识已分配，这一块内存如何与bytebuf绑定？
  *
+ * PoolChunk 代表向系统申请的一块内存，在内部会将内存组织成一棵树
  *
  */
 final class PoolChunk<T> implements PoolChunkMetric {
@@ -118,7 +119,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
     final T memory;
     final boolean unpooled;
 
-    //memoryMap depthMap 存入的是树的层号
+    //memoryMap depthMap 存入的是树所有节点所在的层号 default 4096
     private final byte[] memoryMap;
     private final byte[] depthMap;
 
@@ -132,7 +133,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
     /** Used to determine if the requested capacity is equal to or greater than pageSize. */
     private final int subpageOverflowMask;
-    //default  8k
+    //leaf node size : default  8k
     private final int pageSize;
     private final int pageShifts;
     private final int maxOrder;
@@ -155,6 +156,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
         unpooled = false;
         this.arena = arena;
         this.memory = memory;
+        //叶子节点的大小
         this.pageSize = pageSize;
         this.pageShifts = pageShifts;
         this.maxOrder = maxOrder;
