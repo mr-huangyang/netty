@@ -123,7 +123,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
             try {
                 //#oy: 理解这一段程序，读取网络数据是过程
                 do {
-                    //分配内存
+                    //分配内存 为何通过 handle来分配？？
                     byteBuf = allocHandle.allocate(allocator);
 
                     // #oy: 读取网络字节,记录读取的字节数

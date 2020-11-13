@@ -35,6 +35,8 @@ import static java.lang.Math.max;
  * <a href="https://www.jianshu.com/p/50f902c57dd6">数字计算机表示-1</a>
  * <a href="https://my.oschina.net/keking/blog/3079698">数字计算机表示-2</a>
  *
+ * 代表一块大的内存区，划分成多个内存块（sub page）
+ *
  * @param <T>
  */
 abstract class PoolArena<T> implements PoolArenaMetric {

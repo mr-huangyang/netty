@@ -30,10 +30,14 @@ import java.util.List;
 
 /**
  * <pre>
- * 池化内存分配器
+ * 池化内存分配器: 指定 page size , chunk size, arean数量以及维护一个 thread cache
  *   1: 负责 cache
  *   2:  维护 pool arena 数组
  * <pre/>
+ * {@link PooledByteBufAllocator}
+ *    --> {@link PoolArena}
+ *       --> {@link PoolChunk}
+ *         --> {@link PoolSubpage}
  */
 public class PooledByteBufAllocator extends AbstractByteBufAllocator {
 
@@ -141,16 +145,24 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
     public static final PooledByteBufAllocator DEFAULT =
             new PooledByteBufAllocator(PlatformDependent.directBufferPreferred());
 
+    /**
+     * 重要属性
+     */
+
     // arena数组
     private final PoolArena<byte[]>[] heapArenas;
     private final PoolArena<ByteBuffer>[] directArenas;
+    private final PoolThreadLocalCache threadCache;
+
+    /**
+     * 重要属性
+     */
 
     private final int tinyCacheSize;
     private final int smallCacheSize;
     private final int normalCacheSize;
     private final List<PoolArenaMetric> heapArenaMetrics;
     private final List<PoolArenaMetric> directArenaMetrics;
-    private final PoolThreadLocalCache threadCache;
 
     public PooledByteBufAllocator() {
         this(false);
@@ -210,9 +222,11 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
             directArenas = newArenaArray(nDirectArena);
             List<PoolArenaMetric> metrics = new ArrayList<PoolArenaMetric>(directArenas.length);
             for (int i = 0; i < directArenas.length; i++) {
-                PoolArena.DirectArena arena = new PoolArena.DirectArena(
-                        this, pageSize, maxOrder, pageShifts, chunkSize);
+
+                //#oy-memory: 创建直接内存区对象，此时未真正申请内存
+                PoolArena.DirectArena arena = new PoolArena.DirectArena(this, pageSize, maxOrder, pageShifts, chunkSize);
                 directArenas[i] = arena;
+
                 metrics.add(arena);
             }
             directArenaMetrics = Collections.unmodifiableList(metrics);
