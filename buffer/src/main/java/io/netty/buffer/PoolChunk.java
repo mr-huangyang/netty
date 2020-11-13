@@ -317,7 +317,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
     /**
      * Allocate a run of pages (>=1)
-     *
+     * 根据申请的内存大小，找到一个合适的内存节点，返回节点号
      * @param normCapacity normalized capacity
      * @return index in memoryMap
      */
@@ -464,6 +464,11 @@ final class PoolChunk<T> implements PoolChunkMetric {
         return INTEGER_SIZE_MINUS_ONE - Integer.numberOfLeadingZeros(val);
     }
 
+    /**
+     * 根据节点号，计算出改节点的内存大小
+     * @param id
+     * @return
+     */
     private int runLength(int id) {
         // represents the size in #bytes supported by node 'id' in the tree
         return 1 << log2ChunkSize - depth(id);
