@@ -26,6 +26,7 @@ import java.nio.ByteOrder;
  * 此类相是一个内存操作接口。操作chunk封装的memory
  * pool chunk 负责申请内存与管理， 此类负责操作 chunk  内存
  * #oy-chunk
+ *
  * @param <T>
  */
 abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
@@ -40,6 +41,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
     /**
      * #oy-chunk: 真正的内存类型
      * 用于构造java nio
+     * 表示 操作某内存，从内存的哪开始写到哪，最多能写到哪
      */
     protected T memory;
     protected int offset;
@@ -58,11 +60,10 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
     }
 
     /**
-     *
      * @param chunk
      * @param handle
-     * @param offset buf关联内存段在连续内存中的偏移量
-     * @param length buf关联内存的长度
+     * @param offset    buf关联内存段在连续内存中的偏移量
+     * @param length    buf关联内存的长度
      * @param maxLength buf关联内存的最大长度
      * @param cache
      */
@@ -76,6 +77,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
         this.offset = offset;
         this.length = length;
         this.maxLength = maxLength;
+
         tmpNioBuf = null;
         this.cache = cache;
     }

@@ -107,7 +107,8 @@ package io.netty.buffer;
  *
  *  Q2: 内存节点被分配后如何标识已分配，这一块内存如何与bytebuf绑定？
  *
- * PoolChunk 代表向系统申请的一块内存，在内部会将内存组织成一棵树
+ * 1: PoolChunk 代表向系统申请的一块内存，在内部会将内存组织成一棵树
+ * 2:
  *
  */
 final class PoolChunk<T> implements PoolChunkMetric {
@@ -120,6 +121,11 @@ final class PoolChunk<T> implements PoolChunkMetric {
     final boolean unpooled;
 
     //memoryMap depthMap 存入的是树所有节点所在的层号 default 4096
+    /**
+     * 1: 完全二叉树在数组中从下标1开始
+     * 2：每一层的首节点下标正好表示该层节点数： 1 2 4 8 16
+     * 3：（层号 -1）^ 2 = 该层节点数 ， 2^（n+1） -1 表示所有节点数
+     */
     private final byte[] memoryMap;
     private final byte[] depthMap;
 
@@ -390,6 +396,12 @@ final class PoolChunk<T> implements PoolChunkMetric {
         updateParentsFree(memoryMapIdx);
     }
 
+    /**
+     * 根据 allocate 方法返回的内存起始地址，初始化byte buff
+     * @param buf
+     * @param handle
+     * @param reqCapacity
+     */
     void initBuf(PooledByteBuf<T> buf, long handle, int reqCapacity) {
 
         int memoryMapIdx = memoryMapIdx(handle);
@@ -398,8 +410,10 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
         //通过 bitmapIdx区分 tinypage
         if (bitmapIdx == 0) {
+            //val  表示层号
             byte val = value(memoryMapIdx);
             assert val == unusable : String.valueOf(val);
+            //这里根据 节点号 计划 内存偏移与长度
             buf.init(this, handle, runOffset(memoryMapIdx), reqCapacity, runLength(memoryMapIdx),
                      arena.parent.threadCache());
         } else {

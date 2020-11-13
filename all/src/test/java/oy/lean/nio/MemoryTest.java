@@ -11,7 +11,7 @@ public class MemoryTest {
     }
 
     private static void test1() {
-        final ByteBuf buffer = PooledByteBufAllocator.DEFAULT.buffer(510);
+        final ByteBuf buffer = PooledByteBufAllocator.DEFAULT.buffer(5123);
 //        PooledByteBufAllocator.DEFAULT.buffer(510);
 //        PooledByteBufAllocator.DEFAULT.buffer(510);
 //        PooledByteBufAllocator.DEFAULT.buffer(510);
