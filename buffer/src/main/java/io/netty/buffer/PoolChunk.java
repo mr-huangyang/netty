@@ -108,7 +108,7 @@ package io.netty.buffer;
  *  Q2: 内存节点被分配后如何标识已分配，这一块内存如何与bytebuf绑定？
  *
  * 1: PoolChunk 代表向系统申请的一块内存，在内部会将内存组织成一棵树
- * 2:
+ * 2: chunk 本身是一个连表结点 {@link PoolChunkList}
  *
  */
 final class PoolChunk<T> implements PoolChunkMetric {
