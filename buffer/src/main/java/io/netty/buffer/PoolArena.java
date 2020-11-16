@@ -198,7 +198,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     /**
      * #oy-m: 分配内存执行函数
      *
-     * @param cache
+     * @param cache 会试着先从cache中分配
      * @param buf
      * @param reqCapacity
      */
@@ -285,7 +285,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             return;
         }
 
-        // Add a new chunk.
+        //#oy-memory: 创建chunk并添加到列表中  Add a new chunk.
         PoolChunk<T> c = newChunk(pageSize, maxOrder, pageShifts, chunkSize);
 
         //tiny page 与  page 返回的 handle 不一样:  handle代表 内存树节点号(>512) handle代表内存地址(< 512)

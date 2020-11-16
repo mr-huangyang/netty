@@ -22,7 +22,6 @@ import io.netty.util.internal.PlatformDependent;
 import io.netty.util.internal.StringUtil;
 
 /**
- * 从提前申请好的内存区域中分配合适的内存，用于初始化 byte buffer
  * Skeletal {@link ByteBufAllocator} implementation to extend.
  */
 public abstract class AbstractByteBufAllocator implements ByteBufAllocator {

@@ -34,7 +34,9 @@ import static java.lang.Math.min;
 /**
  * Light-weight object pool based on a thread-local stack.
  *
- * 对象池：创建对象，回收对象
+ * 对象池：
+ *      创建对象，
+ *      回收对象：对象Stack[Handle]
  *
  * @param <T> the type of the pooled object
  *   重点了解 get() , newObject()方法
@@ -207,6 +209,10 @@ public abstract class Recycler<T> {
         void recycle(T object);
     }
 
+    /**
+     * 封装了可回收对象与Stack ,提供 recycle方法，将自身回收到stack中
+     * @param <T>
+     */
     static final class DefaultHandle<T> implements Handle<T> {
         private int lastRecycledId;
         private int recycleId;
@@ -448,6 +454,7 @@ public abstract class Recycler<T> {
             this.thread = thread;
             this.maxCapacity = maxCapacity;
             availableSharedCapacity = new AtomicInteger(max(maxCapacity / maxSharedCapacityFactor, LINK_CAPACITY));
+            // 一个handle 数组
             elements = new DefaultHandle[min(INITIAL_CAPACITY, maxCapacity)];
             this.ratioMask = ratioMask;
             this.maxDelayedQueues = maxDelayedQueues;
