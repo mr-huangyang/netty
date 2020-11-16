@@ -37,6 +37,8 @@ import static java.lang.Math.max;
  *
  * 代表一块大的内存区，划分成多个内存块（sub page）
  *
+ *  Q1: chunk 如何管理
+ *
  * @param <T>
  */
 abstract class PoolArena<T> implements PoolArenaMetric {
@@ -153,7 +155,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     abstract boolean isDirect();
 
     /**
-     * #oy-m: 分配内存 返回byte buf ，底层操作 nio byte buf
+     * #oy-memory: 分配内存 返回byte buf ，底层操作 nio byte buf
      *
      * @param cache
      * @param reqCapacity
