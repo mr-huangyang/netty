@@ -62,6 +62,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
             ResourceLeakDetectorFactory.instance().newResourceLeakDetector(ByteBuf.class);
 
     int readerIndex;
+    //表示写入的字节数
     int writerIndex;
     private int markedReaderIndex;
     private int markedWriterIndex;

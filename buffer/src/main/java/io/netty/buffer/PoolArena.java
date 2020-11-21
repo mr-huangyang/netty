@@ -34,6 +34,7 @@ import static java.lang.Math.max;
  * <a href="https://segmentfault.com/a/1190000021444859">文章-2</>
  * <a href="https://www.jianshu.com/p/50f902c57dd6">数字计算机表示-1</a>
  * <a href="https://my.oschina.net/keking/blog/3079698">数字计算机表示-2</a>
+ * <a href="https://miaowenting.site/2020/02/09/Netty%E5%86%85%E5%AD%98%E6%B1%A0%E5%8C%96%E7%AE%A1%E7%90%86/">Netty内存知识</a>
  *
  * 代表一块大的内存区，划分成多个内存块（sub page）
  *
@@ -198,7 +199,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     }
 
     /**
-     * #oy-m: 分配内存执行函数
+     * #oy-memory: 分配内存执行函数
      *
      * @param cache 会试着先从cache中分配
      * @param buf
