@@ -381,6 +381,11 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         return table[tableIdx];
     }
 
+    /**
+     * 将申请的内存转化成一个标准内存树中的叶子节点内存大小
+     * @param reqCapacity
+     * @return
+     */
     int normalizeCapacity(int reqCapacity) {
         if (reqCapacity < 0) {
             throw new IllegalArgumentException("capacity: " + reqCapacity + " (expected: 0+)");
