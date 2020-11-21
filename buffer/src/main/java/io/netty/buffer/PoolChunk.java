@@ -126,7 +126,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
      * 2：每一层的首节点下标正好表示该层节点数： 1 2 4 8 16
      * 3：（层号 -1）^ 2 = 该层节点数 ， 2^（n+1） -1 表示所有节点数
      */
-    private final byte[] memoryMap;
+    private final byte[] memoryMap; //值会在内存被分配后变更
     private final byte[] depthMap;
 
 
@@ -231,7 +231,13 @@ final class PoolChunk<T> implements PoolChunkMetric {
         return 100 - freePercentage;
     }
 
+    /**
+     * 核心方法
+     * @param normCapacity
+     * @return
+     */
     long allocate(int normCapacity) {
+        //为何不用 >= 运算 ？ 性能低？
         if ((normCapacity & subpageOverflowMask) != 0) { // >= pageSize
             // > pagesize 的直接定位到内存节点
             return allocateRun(normCapacity);
@@ -310,8 +316,12 @@ final class PoolChunk<T> implements PoolChunkMetric {
         byte value = value(id);
         assert value == d && (id & initial) == 1 << d : String.format("val = %d, id & initial = %d, d = %d",
                 value, id & initial, d);
+
+        //设置节点已使用 unusable = 12
         setValue(id, unusable); // mark as unusable
+        //设置
         updateParentsAlloc(id);
+
         return id;
     }
 
@@ -322,7 +332,9 @@ final class PoolChunk<T> implements PoolChunkMetric {
      * @return index in memoryMap
      */
     private long allocateRun(int normCapacity) {
+        //计算内存所在树的层
         int d = maxOrder - (log2(normCapacity) - pageShifts);
+
         int id = allocateNode(d);
         if (id < 0) {
             return id;
@@ -459,6 +471,11 @@ final class PoolChunk<T> implements PoolChunkMetric {
         return depthMap[id];
     }
 
+    /**
+     * 取一个数的2对数  2^10 = 1024  log2(1024) = 10
+     * @param val
+     * @return
+     */
     private static int log2(int val) {
         // compute the (0-based, with lsb = 0) position of highest set bit i.e, log2
         return INTEGER_SIZE_MINUS_ONE - Integer.numberOfLeadingZeros(val);
@@ -471,6 +488,8 @@ final class PoolChunk<T> implements PoolChunkMetric {
      */
     private int runLength(int id) {
         // represents the size in #bytes supported by node 'id' in the tree
+        // default log2chuncksize = 24  8k = 2^13  16m= 2^24
+        // 2^13 * 2^x = 2^24  -> 2^x = 2^(24-13) = 2^11 11刚好是leaf page 所在的层号
         return 1 << log2ChunkSize - depth(id);
     }
 

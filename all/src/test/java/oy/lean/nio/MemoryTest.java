@@ -5,6 +5,7 @@ import io.netty.buffer.PooledByteBufAllocator;
 
 public class MemoryTest {
     public static void main(String[] args) {
+//        System.out.println(Integer.numberOfLeadingZeros(1024));
 //        test_pagesize();
         test1();
 

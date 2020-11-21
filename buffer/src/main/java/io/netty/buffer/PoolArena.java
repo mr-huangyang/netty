@@ -203,8 +203,11 @@ abstract class PoolArena<T> implements PoolArenaMetric {
      * @param reqCapacity
      */
     private void allocate(PoolThreadCache cache, PooledByteBuf<T> buf, final int reqCapacity) {
+
         //规范内存大小
         final int normCapacity = normalizeCapacity(reqCapacity);
+
+        //小内存先从缓存中分配
         if (isTinyOrSmall(normCapacity)) { // capacity < pageSize
             int tableIdx;
             PoolSubpage<T>[] table;

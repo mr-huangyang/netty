@@ -38,6 +38,10 @@ import java.util.List;
  *    --> {@link PoolArena}
  *       --> {@link PoolChunk}
  *         --> {@link PoolSubpage}
+ *
+ * 1： 顶级内存分配接口
+ * 2： 配置内存分配参数，
+ * 3： 配置一个 thread local 缓存用于保存一个与线程相关的 arena
  */
 public class PooledByteBufAllocator extends AbstractByteBufAllocator {
 
@@ -297,7 +301,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
     @Override
     protected ByteBuf newDirectBuffer(int initialCapacity, int maxCapacity) {
 
-        //#oy-memory 每个线程有自己的缓存
+        //#oy-memory 每个线程有自己的缓存 , get 方法调用时创建
         PoolThreadCache cache = threadCache.get();
 
         //分配器初始化时，会生成一定数量的 pool arena
@@ -394,7 +398,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
     final class PoolThreadLocalCache extends FastThreadLocal<PoolThreadCache> {
 
         /**
-         * 初始化时 ，会分配一个 pool arena
+         * 初始化时 ，会分配一个 pool arena,并存入到threadlocal中
          *
          * @return
          */
