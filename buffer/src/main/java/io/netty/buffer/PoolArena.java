@@ -35,6 +35,7 @@ import static java.lang.Math.max;
  * <a href="https://www.jianshu.com/p/50f902c57dd6">数字计算机表示-1</a>
  * <a href="https://my.oschina.net/keking/blog/3079698">数字计算机表示-2</a>
  * <a href="https://miaowenting.site/2020/02/09/Netty%E5%86%85%E5%AD%98%E6%B1%A0%E5%8C%96%E7%AE%A1%E7%90%86/">Netty内存知识</a>
+ * <a href="http://huzb.me/2019/10/13/netty%E6%BA%90%E7%A0%81%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%E2%80%94%E2%80%94%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D/">Netty内存知识</a>
  *
  * 代表一块大的内存区，划分成多个内存块（sub page）
  *
@@ -396,9 +397,11 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
         if (!isTiny(reqCapacity)) { // >= 512
             // Doubled
+            //https://juejin.cn/entry/6844903459112779784 找比某数大离的最近的2幂数
+            //通过构造 二进制 0000 1111 + 0000 0001 = 0001 0000 达到目的
 
             int normalizedCapacity = reqCapacity;
-            normalizedCapacity--;
+            normalizedCapacity--; //为什么要先减1 ？--> A: 8,16类的本身是2的幂 会得到 16，32而不是它本身
             normalizedCapacity |= normalizedCapacity >>> 1;
             normalizedCapacity |= normalizedCapacity >>> 2;
             normalizedCapacity |= normalizedCapacity >>> 4;
