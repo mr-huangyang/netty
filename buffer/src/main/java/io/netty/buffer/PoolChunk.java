@@ -470,7 +470,8 @@ final class PoolChunk<T> implements PoolChunkMetric {
     }
 
     /**
-     * 根据节点号，计算出改节点的内存大小
+     * 根据节点号，计算出某节点的内存大小
+     * 计算原理：每一层的节点内存和=总内存 ,每一层首节点index == 该层节点数 因此有公式 v * 2^d = 16M=2^24
      * @param id
      * @return
      */

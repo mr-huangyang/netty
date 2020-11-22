@@ -256,6 +256,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
     }
 
     private static int validateAndCalculateChunkSize(int pageSize, int maxOrder) {
+        //树层不能超过14层
         if (maxOrder > 14) {
             throw new IllegalArgumentException("maxOrder: " + maxOrder + " (expected: 0-14)");
         }
@@ -263,6 +264,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
         // Ensure the resulting chunkSize does not overflow.
         int chunkSize = pageSize;
         for (int i = maxOrder; i > 0; i--) {
+            //不能超过500M
             if (chunkSize > MAX_CHUNK_SIZE / 2) {
                 throw new IllegalArgumentException(String.format(
                         "pageSize (%d) << maxOrder (%d) must not exceed %d", pageSize, maxOrder, MAX_CHUNK_SIZE));
