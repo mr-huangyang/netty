@@ -161,6 +161,7 @@ public class FastThreadLocal<V> {
             PlatformDependent.throwException(e);
         }
 
+        //将创建的对象存入 thread local map中
         threadLocalMap.setIndexedVariable(index, v);
         addToVariablesToRemove(threadLocalMap, this);
         return v;

@@ -40,7 +40,7 @@ import static java.lang.Math.min;
  *
  * @param <T> the type of the pooled object
  *   重点了解 get() , newObject()方法
- *           Recycler  --> threadlocal --> stack
+ *           Recycler  --> thread local --> stack
  */
 public abstract class Recycler<T> {
 
