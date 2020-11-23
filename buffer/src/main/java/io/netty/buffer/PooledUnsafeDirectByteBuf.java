@@ -31,6 +31,9 @@ import java.nio.channels.ScatteringByteChannel;
 /**
  * 1:nio channel read 默认对应的 byte buffer
  * 2: 同时负责对象的创建维护
+ * 3: 内存分配时保存了内存地址
+ *
+ * Unsafe 表现为所有操作通过  {@link PlatformDependent} {@link UnsafeByteBufUtil}
  */
 final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
 
@@ -50,6 +53,7 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
         return buf;
     }
 
+    //#oy-memory: 内存地址
     private long memoryAddress;
 
     private PooledUnsafeDirectByteBuf(Recycler.Handle<PooledUnsafeDirectByteBuf> recyclerHandle, int maxCapacity) {

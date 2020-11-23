@@ -34,8 +34,12 @@ import static java.lang.Math.max;
  * <a href="https://segmentfault.com/a/1190000021444859">文章-2</>
  * <a href="https://www.jianshu.com/p/50f902c57dd6">数字计算机表示-1</a>
  * <a href="https://my.oschina.net/keking/blog/3079698">数字计算机表示-2</a>
+ * <a href="https://miaowenting.site/2020/02/09/Netty%E5%86%85%E5%AD%98%E6%B1%A0%E5%8C%96%E7%AE%A1%E7%90%86/">Netty内存知识</a>
+ * <a href="http://huzb.me/2019/10/13/netty%E6%BA%90%E7%A0%81%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%E2%80%94%E2%80%94%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D/">Netty内存知识</a>
  *
  * 代表一块大的内存区，划分成多个内存块（sub page）
+ *
+ *  Q1: chunk 如何管理
  *
  * @param <T>
  */
@@ -153,7 +157,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     abstract boolean isDirect();
 
     /**
-     * #oy-m: 分配内存 返回byte buf ，底层操作 nio byte buf
+     * #oy-memory: 分配内存 返回byte buf ，底层操作 nio byte buf
      *
      * @param cache
      * @param reqCapacity
@@ -196,9 +200,9 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     }
 
     /**
-     * #oy-m: 分配内存执行函数
+     * #oy-memory: 分配内存执行函数
      *
-     * @param cache
+     * @param cache 会试着先从cache中分配
      * @param buf
      * @param reqCapacity
      */
@@ -288,7 +292,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             return;
         }
 
-        // Add a new chunk.
+        //#oy-memory: 创建chunk并添加到列表中  Add a new chunk.
         PoolChunk<T> c = newChunk(pageSize, maxOrder, pageShifts, chunkSize);
 
         //tiny page 与  page 返回的 handle 不一样:  handle代表 内存树节点号(>512) handle代表内存地址(< 512)
@@ -381,6 +385,11 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         return table[tableIdx];
     }
 
+    /**
+     * 将申请的内存转化成一个标准内存树中的叶子节点内存大小
+     * @param reqCapacity
+     * @return
+     */
     int normalizeCapacity(int reqCapacity) {
         if (reqCapacity < 0) {
             throw new IllegalArgumentException("capacity: " + reqCapacity + " (expected: 0+)");
@@ -391,9 +400,11 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
         if (!isTiny(reqCapacity)) { // >= 512
             // Doubled
+            //https://juejin.cn/entry/6844903459112779784 找比某数大离的最近的2幂数
+            //通过构造 二进制 0000 1111 + 0000 0001 = 0001 0000 达到目的
 
             int normalizedCapacity = reqCapacity;
-            normalizedCapacity--;
+            normalizedCapacity--; //为什么要先减1 ？--> A: 8,16类的本身是2的幂 会得到 16，32而不是它本身
             normalizedCapacity |= normalizedCapacity >>> 1;
             normalizedCapacity |= normalizedCapacity >>> 2;
             normalizedCapacity |= normalizedCapacity >>> 4;

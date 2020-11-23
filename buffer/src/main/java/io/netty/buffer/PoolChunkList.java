@@ -27,13 +27,13 @@ import static java.lang.Math.*;
 
 final class PoolChunkList<T> implements PoolChunkListMetric {
     private static final Iterator<PoolChunkMetric> EMPTY_METRICS = Collections.<PoolChunkMetric>emptyList().iterator();
-    private final PoolChunkList<T> nextList;
     private final int minUsage;
     private final int maxUsage;
     private final int maxCapacity;
 
     private PoolChunk<T> head;
 
+    private final PoolChunkList<T> nextList;
     // This is only update once when create the linked like list of PoolChunkList in PoolArena constructor.
     private PoolChunkList<T> prevList;
 

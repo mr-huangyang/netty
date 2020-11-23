@@ -108,7 +108,7 @@ package io.netty.buffer;
  *  Q2: 内存节点被分配后如何标识已分配，这一块内存如何与bytebuf绑定？
  *
  * 1: PoolChunk 代表向系统申请的一块内存，在内部会将内存组织成一棵树
- * 2:
+ * 2: chunk 本身是一个连表结点 {@link PoolChunkList}
  *
  */
 final class PoolChunk<T> implements PoolChunkMetric {
@@ -132,7 +132,8 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
     /**
      * 存储创建的page: 16M 以8k为-个page ,最多2048个
-     * 每一个 sub page 又被下半场分成若干块
+     * 每一个 sub page 又被分成若干块
+     * 关联 {@link PoolArena}中的tiny sub page
      */
     private final PoolSubpage<T>[] subpages;
 
@@ -152,6 +153,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
     private int freeBytes;
 
     PoolChunkList<T> parent;
+    //chunk 列表 配合 PoolChunkList 使用
     PoolChunk<T> prev;
     PoolChunk<T> next;
 
@@ -351,9 +353,11 @@ final class PoolChunk<T> implements PoolChunkMetric {
      * @return index in memoryMap
      */
     private long allocateSubpage(int normCapacity) {
+
         // Obtain the head of the PoolSubPage pool that is owned by the PoolArena and synchronize on it.
         // This is need as we may add it back and so alter the linked-list structure.
         PoolSubpage<T> head = arena.findSubpagePoolHead(normCapacity);
+
         synchronized (head) {
             int d = maxOrder; // subpages are only be allocated from pages i.e., leaves
             int id = allocateNode(d);
@@ -369,6 +373,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
             int subpageIdx = subpageIdx(id);
             PoolSubpage<T> subpage = subpages[subpageIdx];
             if (subpage == null) {
+                //创建小内存 page
                 subpage = new PoolSubpage<T>(head, this, id, runOffset(id), pageSize, normCapacity);
                 subpages[subpageIdx] = subpage;
             } else {
@@ -482,7 +487,8 @@ final class PoolChunk<T> implements PoolChunkMetric {
     }
 
     /**
-     * 根据节点号，计算出改节点的内存大小
+     * 根据节点号，计算出某节点的内存大小
+     * 计算原理：每一层的节点内存和=总内存 ,每一层首节点index == 该层节点数 因此有公式 v * 2^d = 16M=2^24
      * @param id
      * @return
      */

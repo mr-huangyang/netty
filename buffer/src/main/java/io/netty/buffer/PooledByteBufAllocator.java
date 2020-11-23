@@ -156,6 +156,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
     // arena数组
     private final PoolArena<byte[]>[] heapArenas;
     private final PoolArena<ByteBuffer>[] directArenas;
+    // arena cache 一个线程绑定一个arena
     private final PoolThreadLocalCache threadCache;
 
     /**
@@ -259,6 +260,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
     }
 
     private static int validateAndCalculateChunkSize(int pageSize, int maxOrder) {
+        //树层不能超过14层
         if (maxOrder > 14) {
             throw new IllegalArgumentException("maxOrder: " + maxOrder + " (expected: 0-14)");
         }
@@ -266,6 +268,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
         // Ensure the resulting chunkSize does not overflow.
         int chunkSize = pageSize;
         for (int i = maxOrder; i > 0; i--) {
+            //不能超过500M
             if (chunkSize > MAX_CHUNK_SIZE / 2) {
                 throw new IllegalArgumentException(String.format(
                         "pageSize (%d) << maxOrder (%d) must not exceed %d", pageSize, maxOrder, MAX_CHUNK_SIZE));
@@ -304,13 +307,13 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
         //#oy-memory 每个线程有自己的缓存 , get 方法调用时创建
         PoolThreadCache cache = threadCache.get();
 
-        //分配器初始化时，会生成一定数量的 pool arena
+        //分配器初始化时，会生成一定数量的 pool arena,每个调用线程会分配一个arena
         PoolArena<ByteBuffer> directArena = cache.directArena;
 
         //分配bytebuf
         ByteBuf buf;
         if (directArena != null) {
-            //#oy-m : 创建byte buf ， 先从缓存取
+            //#oy-memory : 创建byte buf ， 先从缓存取
             buf = directArena.allocate(cache, initialCapacity, maxCapacity);
         } else {
             if (PlatformDependent.hasUnsafe()) {
@@ -395,6 +398,9 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
         threadCache.remove();
     }
 
+    /**
+     * 为线程分配一个 arena 只分配一个！！！！
+     */
     final class PoolThreadLocalCache extends FastThreadLocal<PoolThreadCache> {
 
         /**

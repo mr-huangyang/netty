@@ -114,7 +114,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
             final ChannelPipeline pipeline = pipeline();
             //字节缓存分配器，有不同类型的分配实现
             final ByteBufAllocator allocator = config.getAllocator();
-            // 接收数据，控制数据读取
+            // 接收数据，控制数据读取: AdaptiveRecvByteBufAllocator
             final RecvByteBufAllocator.Handle allocHandle = recvBufAllocHandle();
             allocHandle.reset(config);
 
