@@ -47,6 +47,11 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
         return slowThreadLocalMap.get();
     }
 
+    /**
+     * 如果是 {@link FastThreadLocalThread} 线程直接给线程设置一个 {@link InternalThreadLocalMap} 对象
+     * 否则调用 {@link ThreadLocal}.get()
+     * @return
+     */
     public static InternalThreadLocalMap get() {
         Thread thread = Thread.currentThread();
         if (thread instanceof FastThreadLocalThread) {
@@ -56,6 +61,12 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
         }
     }
 
+    /**
+     *
+     * #oy-thread 给{@link FastThreadLocalThread}设置一个  thread local map
+     * @param thread
+     * @return
+     */
     private static InternalThreadLocalMap fastGet(FastThreadLocalThread thread) {
         InternalThreadLocalMap threadLocalMap = thread.threadLocalMap();
         if (threadLocalMap == null) {

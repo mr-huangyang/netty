@@ -156,7 +156,11 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
     // arena数组
     private final PoolArena<byte[]>[] heapArenas;
     private final PoolArena<ByteBuffer>[] directArenas;
-    // arena cache 一个线程绑定一个arena
+    /**
+     *  一个 {@link FastThreadLocal} 子对象
+     *  arena cache 一个线程绑定一个arena
+     *
+     */
     private final PoolThreadLocalCache threadCache;
 
     /**

@@ -122,6 +122,7 @@ package io.netty.buffer;
  *
  *      1:每层节点数等于首节点的下标
  *
+ * 3: 2个重要的方法 allocate  initBuf
  */
 final class PoolChunk<T> implements PoolChunkMetric {
 

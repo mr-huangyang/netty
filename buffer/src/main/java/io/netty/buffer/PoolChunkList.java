@@ -73,6 +73,10 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
         this.prevList = prevList;
     }
 
+    /**
+     *
+     * 从管理的chunk链表中依次分配
+     */
     boolean allocate(PooledByteBuf<T> buf, int reqCapacity, int normCapacity) {
         if (head == null || normCapacity > maxCapacity) {
             // Either this PoolChunkList is empty or the requested capacity is larger then the capacity which can

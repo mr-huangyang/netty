@@ -123,6 +123,9 @@ public class FastThreadLocal<V> {
         variablesToRemove.remove(variable);
     }
 
+    /**
+     *
+     */
     private final int index;
 
     public FastThreadLocal() {
