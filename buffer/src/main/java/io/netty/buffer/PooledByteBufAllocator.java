@@ -90,7 +90,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
         // in NIO and EPOLL as well. If we choose a smaller number we will run into hotspots as allocation and
         // deallocation needs to be synchronized on the PoolArena.
         // See https://github.com/netty/netty/issues/3888
-        final int defaultMinNumArena = runtime.availableProcessors() * 2;
+        final int defaultMinNumArena = runtime.availableProcessors() * 2; //cpu * 2
         final int defaultChunkSize = DEFAULT_PAGE_SIZE << DEFAULT_MAX_ORDER;
 
         // 配置 arena 数量

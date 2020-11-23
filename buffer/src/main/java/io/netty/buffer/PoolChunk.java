@@ -102,6 +102,7 @@ package io.netty.buffer;
  * <br/>
  * Ref:
  *  <a href="https://juejin.im/post/5ca4a5e051882543b16e33aa">chunk1</a>
+ *  <a href="https://www.jianshu.com/p/c4bd37a3555b">chunk2</a>
  *
  *  Q1: 内存如何管理？
  *
@@ -110,13 +111,24 @@ package io.netty.buffer;
  * 1: PoolChunk 代表向系统申请的一块内存，在内部会将内存组织成一棵树
  * 2: chunk 本身是一个连表结点 {@link PoolChunkList}
  *
+ *
+ *                      o      depth=0  id = 1
+ *                    o   o    depth=1  id = 2 = 2^1
+ *                  o  o o o   depth=2  id = 4 = 2^2
+ *                             depth=3  id = 8 = 2^3
+ *                             depth=4  id = 16 = 2^4
+ *                             .....
+ *                             depth=11 id = 2048 = 2^11
+ *
+ *      1:每层节点数等于首节点的下标
+ *
  */
 final class PoolChunk<T> implements PoolChunkMetric {
 
     private static final int INTEGER_SIZE_MINUS_ONE = Integer.SIZE - 1;
 
     final PoolArena<T> arena;
-    //分配的内存对象
+    //管理的内存对象
     final T memory;
     final boolean unpooled;
 
@@ -258,12 +270,15 @@ final class PoolChunk<T> implements PoolChunkMetric {
      */
     private void updateParentsAlloc(int id) {
         while (id > 1) {
+            //无符号右移直接得到父级 index
             int parentId = id >>> 1;
             byte val1 = value(id);
             byte val2 = value(id ^ 1);
+            //父节点的层号取相邻节点小值
             byte val = val1 < val2 ? val1 : val2;
             setValue(parentId, val);
             id = parentId;
+//            System.out.println("parentId=" + parentId + " val = " + val);
         }
     }
 
@@ -297,22 +312,27 @@ final class PoolChunk<T> implements PoolChunkMetric {
      * Algorithm to allocate an index in memoryMap when we query for a free node
      * at depth d
      *
-     * @param d depth
+     * @param d depth  层号从0开始 0表示第一层 ，11 表示第12层
      * @return index in memoryMap
      */
     private int allocateNode(int d) {
         int id = 1;
         int initial = - (1 << d); // has last d bits = 0 and rest all = 1
         byte val = value(id);
+
+        //内存已用完
         if (val > d) { // unusable
             return -1;
         }
+
+        //当节点层号>= d时 判断  (id & initial) == 0
         while (val < d || (id & initial) == 0) { // id & initial == 1 << d for all ids at depth d, for < d it is 0
             id <<= 1;
             val = value(id);
-            if (val > d) {
-                id ^= 1;
-                val = value(id);
+            if (val > d) { //找到一个已被分配过的节点
+                // id = id ^ 1 ^ 位相同取0，不同取1
+                id ^= 1; //找到右边的兄弟节点 . id += 1 是否一样？？
+                val = value(id); //id越界？？
             }
         }
         byte value = value(id);
@@ -321,7 +341,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
         //设置节点已使用 unusable = 12
         setValue(id, unusable); // mark as unusable
-        //设置
+        //一个节点被分配后，上级节点的层号设置成与子节点层号相同。 chunk完全分配后，所有节点层号都为12
         updateParentsAlloc(id);
 
         return id;
@@ -334,7 +354,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
      * @return index in memoryMap
      */
     private long allocateRun(int normCapacity) {
-        //计算内存所在树的层
+        //计算内存所在树的层: 理解这个公式的原理
         int d = maxOrder - (log2(normCapacity) - pageShifts);
 
         int id = allocateNode(d);
@@ -495,7 +515,8 @@ final class PoolChunk<T> implements PoolChunkMetric {
     private int runLength(int id) {
         // represents the size in #bytes supported by node 'id' in the tree
         // default log2chuncksize = 24  8k = 2^13  16m= 2^24
-        // 2^13 * 2^x = 2^24  -> 2^x = 2^(24-13) = 2^11 11刚好是leaf page 所在的层号
+        // 2^13 * 2^x = 2^24  -> 2^x = 2^(24-13) = 2^11 x=11刚好是leaf page 所在的层号
+
         return 1 << log2ChunkSize - depth(id);
     }
 
