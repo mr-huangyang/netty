@@ -372,7 +372,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     }
 
     /**
-     * #oy: 网络数据读写操作入口
+     * #oy-thread: loop 线程执行的最终入口  网络数据读写操作入口
      *
      */
     @Override

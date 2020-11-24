@@ -81,7 +81,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         }
 
         if (executor == null) {
-            //#oy-thread  一个线程执行一个任务: 关注这个类，能过此类为每个 eventloop创建线程
+            //#oy-thread  一个线程执行一个任务: 关注这个类，通过此类为每个 eventloop创建线程
             // ref -> FastThreadLocalThread
             executor = new ThreadPerTaskExecutor(newDefaultThreadFactory());
         }

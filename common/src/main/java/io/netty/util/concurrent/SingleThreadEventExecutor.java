@@ -39,6 +39,9 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * <br/>
  * c: event executor可能会被多个线程执行
  *
+ * #oy-thread 执行任务逻辑的类
+ *
+ *
  */
 public abstract class SingleThreadEventExecutor extends AbstractScheduledEventExecutor implements OrderedEventExecutor {
 
@@ -747,7 +750,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     }
 
     /**
-     * 把任务放到队列，并未真正执行任务:####
+     * #oy-thread-execute 把任务放到队列，并未真正执行任务:####
      * @param task
      */
     @Override
@@ -761,6 +764,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
             // ?# task 容量如何控制，会不会占用大量内存，有没有拒绝策略
             addTask(task);
         } else {
+            //不是 loop 线程 则启动一个新的线程执行
             startThread();
             addTask(task);
             if (isShutdown() && removeTask(task)) {
@@ -861,9 +865,12 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         }
     }
 
+    /**
+     * 线程启动，开始loop
+     */
     private void doStartThread() {
         assert thread == null;
-        //*** refer --> ThreadPerTaskExecutor.execute()[创建新线程直接运行] -> DefaultThreadFactory -> FastThreadLocalThread
+        // #oy-thread *** refer --> ThreadPerTaskExecutor.execute()[创建新线程直接运行] -> DefaultThreadFactory -> FastThreadLocalThread
         executor.execute(new Runnable() {
             @Override
             public void run() {
@@ -875,7 +882,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
                 boolean success = false;
                 updateLastExecutionTime();
                 try {
-                    //**** 此处调用自定义run的方法,run方法中实现了一个死循环监听网络事件
+                    // #oy-thread **** 此处调用自定义run的方法,run方法中实现了一个死循环监听网络事件
                     SingleThreadEventExecutor.this.run();
                     success = true;
                 } catch (Throwable t) {
