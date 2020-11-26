@@ -331,7 +331,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
             id <<= 1;
             val = value(id);
             if (val > d) { //找到一个已被分配过的节点
-                // id = id ^ 1 ^ 位相同取0，不同取1
+                // id = id ^ 1 (^位相同取0，不同取1)
                 id ^= 1; //找到右边的兄弟节点 . id += 1 是否一样？？
                 val = value(id); //id越界？？
             }
@@ -342,7 +342,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
         //设置节点已使用 unusable = 12
         setValue(id, unusable); // mark as unusable
-        //一个节点被分配后，上级节点的层号设置成与子节点层号相同。 chunk完全分配后，所有节点层号都为12
+        //一个节点被分配后，上级节点的层号设置成与未分配子节点层号相同。 chunk完全分配后，所有节点层号都为12
         updateParentsAlloc(id);
 
         return id;

@@ -30,7 +30,7 @@ import java.util.List;
 
 /**
  * <pre>
- * 池化内存分配器: 指定 page size , chunk size, arean数量以及维护一个 thread cache
+ * 池化内存分配器: 指定 page size , chunk size, arena数量以及维护一个 thread cache
  *   1: 负责 cache
  *   2:  维护 pool arena 数组
  * <pre/>
