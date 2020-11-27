@@ -42,23 +42,23 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
     private final int pageSize;
 
     /**
-     * 内存使用标识
+     * 内存使用标识, 每一位表示 maxNumElems中的一个是否已使用
      */
     private final long[] bitmap;
+
+    int elemSize;
+    //page 被平均切分的数字
+    private int maxNumElems;
+    //实际需要使用的bitmap长度
+    private int bitmapLength;
+    private int nextAvail;
+    private int numAvail;
 
     PoolSubpage<T> prev;
     PoolSubpage<T> next;
 
     boolean doNotDestroy;
 
-    /**
-     * ??
-     */
-    int elemSize;
-    private int maxNumElems;
-    private int bitmapLength;
-    private int nextAvail;
-    private int numAvail;
 
     // TODO: Test if adding padding helps under contention
     //private long pad0, pad1, pad2, pad3, pad4, pad5, pad6, pad7;
@@ -80,10 +80,18 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         this.memoryMapIdx = memoryMapIdx;
         this.runOffset = runOffset;
         this.pageSize = pageSize;
+
+        //为什么右移10位？？ 因为最小的块是16k,可以为分512个块8个long，512位正好可以对应
         bitmap = new long[pageSize >>> 10]; // pageSize / 16 / 64
+
         init(head, elemSize);
     }
 
+    /**
+     *
+     * @param head
+     * @param elemSize
+     */
     void init(PoolSubpage<T> head, int elemSize) {
         doNotDestroy = true;
         this.elemSize = elemSize;
@@ -91,6 +99,8 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
             //将首次请求的内存大小切分 pageSize
             maxNumElems = numAvail = pageSize / elemSize;
             nextAvail = 0;
+
+            //为什么右移6位？
             bitmapLength = maxNumElems >>> 6;
             if ((maxNumElems & 63) != 0) {
                 bitmapLength++;
@@ -116,9 +126,12 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         }
 
         final int bitmapIdx = getNextAvail();
+
         int q = bitmapIdx >>> 6;
         int r = bitmapIdx & 63;
+
         assert (bitmap[q] >>> r & 1) == 0;
+
         bitmap[q] |= 1L << r;
 
         if (--numAvail == 0) {
@@ -196,9 +209,10 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
     private int findNextAvail() {
         final long[] bitmap = this.bitmap;
         final int bitmapLength = this.bitmapLength;
+        //为什么不直接用 bitmap.length ???
         for (int i = 0; i < bitmapLength; i++) {
             long bits = bitmap[i];
-            if (~bits != 0) {
+            if (~bits != 0) {// bits ==0 表示 可用
                 return findNextAvail0(i, bits);
             }
         }

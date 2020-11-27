@@ -5,6 +5,7 @@ import io.netty.buffer.PooledByteBufAllocator;
 
 public class MemoryTest {
     public static void main(String[] args) {
+//        System.out.println(Integer.toBinaryString(-1));
 //        System.out.println(Integer.numberOfLeadingZeros(1024));
 //        test_pagesize();
         test1();
@@ -12,10 +13,10 @@ public class MemoryTest {
     }
 
     private static void test1() {
-        ByteBuf buffer = null; //PooledByteBufAllocator.DEFAULT.buffer(7000);
-        for(int i = 0;i <3 ; i++){
-            PooledByteBufAllocator.DEFAULT.buffer(7000);
-        }
+        ByteBuf buffer = PooledByteBufAllocator.DEFAULT.buffer(17);
+//        for(int i = 0;i <3 ; i++){
+//            PooledByteBufAllocator.DEFAULT.buffer(7000);
+//        }
 //        PooledByteBufAllocator.DEFAULT.buffer(510);
 //        PooledByteBufAllocator.DEFAULT.buffer(510);
 //        PooledByteBufAllocator.DEFAULT.buffer(510);

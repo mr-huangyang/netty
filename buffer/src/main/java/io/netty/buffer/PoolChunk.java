@@ -355,7 +355,8 @@ final class PoolChunk<T> implements PoolChunkMetric {
      * @return index in memoryMap
      */
     private long allocateRun(int normCapacity) {
-        //计算内存所在树的层: 理解这个公式的原理
+        //计算内存所在树的层: 最大层号 - (标准内存大小值对应的log2对数值-最小节点内存的log2对数值)
+        //计算normCapacity 所在的层: 假设normCapacity=8K=2^13
         int d = maxOrder - (log2(normCapacity) - pageShifts);
 
         int id = allocateNode(d);
