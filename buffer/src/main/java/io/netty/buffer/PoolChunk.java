@@ -451,7 +451,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
             //val  表示层号
             byte val = value(memoryMapIdx);
             assert val == unusable : String.valueOf(val);
-            //这里根据 节点号 计划 内存偏移与长度
+            //这里根据 节点号 计算 内存偏移与长度
             buf.init(this, handle, runOffset(memoryMapIdx), reqCapacity, runLength(memoryMapIdx),
                      arena.parent.threadCache());
         } else {

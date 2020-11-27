@@ -142,6 +142,7 @@ public class FastThreadLocal<V> {
     /**
      * Returns the current value for the specified thread local map.
      * The specified thread local map must be for the current thread.
+     * 获取的对象是一个单例对象，
      */
     @SuppressWarnings("unchecked")
     public final V get(InternalThreadLocalMap threadLocalMap) {

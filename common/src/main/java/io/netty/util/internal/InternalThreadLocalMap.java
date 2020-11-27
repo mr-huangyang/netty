@@ -32,6 +32,10 @@ import java.util.WeakHashMap;
  * The internal data structure that stores the thread-local variables for Netty and all {@link FastThreadLocal}s.
  * Note that this class is for internal use only and is subject to change at any time.  Use {@link FastThreadLocal}
  * unless you know what you are doing.
+ *
+ * 思路： {@link FastThreadLocalThread} 直接绑定 {@link InternalThreadLocalMap} , map底层持有一个数组 array。每个{@link FastThreadLocal}
+ *       会被分配一个index , 占据array中的一个位置
+ *       比如 fast thread 线程创建了 多个{@link FastThreadLocal}，每个ftl对象持有的value object会被保存到array中
  */
 public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap {
 
@@ -278,6 +282,7 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
 
     /**
      * @return {@code true} if and only if a new thread-local variable has been created
+     * #oy-threadlocal: 设置线程变量值
      */
     public boolean setIndexedVariable(int index, Object value) {
         Object[] lookup = indexedVariables;

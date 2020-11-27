@@ -1,5 +1,5 @@
 PoolChunk是Netty内存管理最为核心的类。它的整体思想是将一块内存组织成逻辑上的平衡二叉树，以数组存储树的节点。
-核心方法 allocateRun() , allocateNode()
+核心方法 allocateRun(...) , allocateNode(...), initBuf(...)
 
 ```java
 
@@ -89,6 +89,32 @@ final class PoolChunk<T> implements PoolChunkMetric {
             id = parentId;
         }
     }
+
+    /**
+     * 根据 allocate 方法返回的内存起始地址，初始化byte buff
+     * @param buf
+     * @param handle
+     * @param reqCapacity
+     */
+    void initBuf(PooledByteBuf<T> buf, long handle, int reqCapacity) {
+
+        int memoryMapIdx = memoryMapIdx(handle);
+
+        int bitmapIdx = bitmapIdx(handle);
+
+        //通过 bitmapIdx区分 tinypage
+        if (bitmapIdx == 0) {
+            //val  表示层号
+            byte val = value(memoryMapIdx);
+            assert val == unusable : String.valueOf(val);
+            //这里根据 节点号 计算 内存偏移与长度
+            buf.init(this, handle, runOffset(memoryMapIdx), reqCapacity, runLength(memoryMapIdx),
+                     arena.parent.threadCache());
+        } else {
+            initBufWithSubpage(buf, handle, bitmapIdx, reqCapacity);
+        }
+    }
+
 }
 
 ```
