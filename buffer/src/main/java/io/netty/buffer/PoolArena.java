@@ -402,6 +402,9 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             // Doubled
             //https://juejin.cn/entry/6844903459112779784 找比某数大离的最近的2幂数
             //通过构造 二进制 0000 1111 + 0000 0001 = 0001 0000 达到目的
+            //为什么是1，2，4，8，16这样的移动？ 比如  0000-1001 通过(x|=x>>1[因为此时只能判断高位只有一位是1])
+            // 后变为0000-1100此时高位有2位是1，再运算(x|x>>2),以此类推
+
 
             int normalizedCapacity = reqCapacity;
             normalizedCapacity--; //为什么要先减1 ？--> A: 8,16类的本身是2的幂 会得到 16，32而不是它本身
