@@ -105,7 +105,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
         }
 
         /**
-         * #oy-r: 真正的读取网络数据
+         * #oy-read: 真正的读取网络数据
          */
         @Override
         public final void read() {
@@ -121,12 +121,12 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
             ByteBuf byteBuf = null;
             boolean close = false;
             try {
-                //#oy: 理解这一段程序，读取网络数据是过程
+                //#oy-read: 理解这一段程序，读取网络数据是过程
                 do {
                     //分配内存 为何通过 handle来分配？？
                     byteBuf = allocHandle.allocate(allocator);
 
-                    // #oy: 读取网络字节,记录读取的字节数
+                    // #oy-read: 读取网络字节,记录读取的字节数
                     allocHandle.lastBytesRead(       doReadBytes(byteBuf)      );
 
                     if (allocHandle.lastBytesRead() <= 0) {
@@ -139,7 +139,7 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
 
                     allocHandle.incMessagesRead(1);
                     readPending = false;
-                    //#oy: 读取一次数据后，将数据在pipeline中传递,从 head context 开始, PooledUnsafeDirectByteBuf
+                    //#oy-read: 读取一次数据后，将数据在pipeline中传递,从 head context 开始, PooledUnsafeDirectByteBuf
                     pipeline.fireChannelRead(byteBuf);
                     byteBuf = null;
                 } while (allocHandle.continueReading()); /** {@link io.netty.channel.MaxMessagesRecvByteBufAllocator} */

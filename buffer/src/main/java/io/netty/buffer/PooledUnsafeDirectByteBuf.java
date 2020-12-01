@@ -313,6 +313,7 @@ final class PooledUnsafeDirectByteBuf extends PooledByteBuf<ByteBuffer> {
 
     @Override
     public int setBytes(int index, ScatteringByteChannel in, int length) throws IOException {
+        //#oy-read-nio 将数据从 nio 中读出
         checkIndex(index, length);
         ByteBuffer tmpBuf = internalNioBuffer();
         index = idx(index);

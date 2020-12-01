@@ -81,7 +81,8 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         this.runOffset = runOffset;
         this.pageSize = pageSize;
 
-        //为什么右移10位？？ 因为最小的块是16k,可以为分512个块8个long，512位正好可以对应
+        //为什么右移10位？？ 因为最小的块是16字节,pageSize=8k可分成512个最小单位
+        //long是64位，8*64=512正好一位对应一个最小内存块
         bitmap = new long[pageSize >>> 10]; // pageSize / 16 / 64
 
         init(head, elemSize);
@@ -96,7 +97,7 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
         doNotDestroy = true;
         this.elemSize = elemSize;
         if (elemSize != 0) {
-            //将首次请求的内存大小切分 pageSize
+            //按首次请求的内存大小切分 pageSize
             maxNumElems = numAvail = pageSize / elemSize;
             nextAvail = 0;
 

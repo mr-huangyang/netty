@@ -13,7 +13,7 @@ public class MemoryTest {
     }
 
     private static void test1() {
-        ByteBuf buffer = PooledByteBufAllocator.DEFAULT.buffer(17);
+        ByteBuf buffer = PooledByteBufAllocator.DEFAULT.buffer(1024 *4);
 //        for(int i = 0;i <3 ; i++){
 //            PooledByteBufAllocator.DEFAULT.buffer(7000);
 //        }

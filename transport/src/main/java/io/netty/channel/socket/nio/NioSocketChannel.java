@@ -380,14 +380,14 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
 
     /**
      * ###: 从 java nio 中读取数据, 写入 bytebuf
-     * @param byteBuf
+     * @param byteBuf {@link io.netty.buffer.PooledUnsafeDirectByteBuf}
      * @return
      * @throws Exception
      */
     @Override
     protected int doReadBytes(ByteBuf byteBuf) throws Exception {
         final RecvByteBufAllocator.Handle allocHandle = unsafe().recvBufAllocHandle();
-        // 记录本次最多可以读取的字节数
+        //#oy-read 记录本次最多可以读取的字节数
         allocHandle.attemptedBytesRead(byteBuf.writableBytes());
         return byteBuf.writeBytes(javaChannel(), allocHandle.attemptedBytesRead());
     }
