@@ -118,7 +118,9 @@ package io.netty.buffer;
  *                             depth=3  id = 8 = 2^3
  *                             depth=4  id = 16 = 2^4
  *                             .....
- *                             depth=11 id = 2048 = 2^11
+ *                             depth=9 id = 2048 = 2^9   size=32k=2^15
+ *                             depth=10 id = 2048 = 2^10   size=16k=2^14
+ *                             depth=11 id = 2048 = 2^11   size=8k=2^13
  *
  *      1:每层节点数等于首节点的下标
  *
@@ -355,6 +357,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
      * @return index in memoryMap
      */
     private long allocateRun(int normCapacity) {
+
         //计算内存所在树的层: 最大层号 - (标准内存大小值对应的log2对数值-最小节点内存的log2对数值)
         //计算normCapacity 所在的层: 假设normCapacity=8K=2^13
         int d = maxOrder - (log2(normCapacity) - pageShifts);

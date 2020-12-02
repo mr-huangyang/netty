@@ -29,6 +29,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
+ *  设置默认参数：chunk最大不超过500M ，树高不超过15层（d=14），page size 不能低于4k
+ *
  * <pre>
  * 池化内存分配器: 指定 page size , chunk size, arena数量以及维护一个 thread cache
  *   1: 负责 cache
@@ -62,6 +64,9 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
     private static final int MAX_CHUNK_SIZE = (int) (((long) Integer.MAX_VALUE + 1) / 2);
 
     static {
+
+        //chunk最大小值？ page size 最小值？ 内存树最多几层？
+
         int defaultPageSize = SystemPropertyUtil.getInt("io.netty.allocator.pageSize", 8192);
         Throwable pageSizeFallbackCause = null;
         try {
@@ -72,7 +77,9 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
         }
         DEFAULT_PAGE_SIZE = defaultPageSize;
 
+        //默认内存树12层，层号从0开始，这里11表示的是层号
         int defaultMaxOrder = SystemPropertyUtil.getInt("io.netty.allocator.maxOrder", 11);
+
         Throwable maxOrderFallbackCause = null;
         try {
             validateAndCalculateChunkSize(DEFAULT_PAGE_SIZE, defaultMaxOrder);
@@ -250,7 +257,15 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
         return new PoolArena[size];
     }
 
+    /**
+     * #oy-memory-meta
+     *
+     * @param pageSize 最小4k 必须是2幂次方
+     * @return
+     */
     private static int validateAndCalculatePageShifts(int pageSize) {
+
+        //为什么不能比4k再小了 ？？
         if (pageSize < MIN_PAGE_SIZE) {
             throw new IllegalArgumentException("pageSize: " + pageSize + " (expected: " + MIN_PAGE_SIZE + ")");
         }
@@ -264,7 +279,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
     }
 
     private static int validateAndCalculateChunkSize(int pageSize, int maxOrder) {
-        //树层不能超过14层
+        //树层不能超过14层 ??
         if (maxOrder > 14) {
             throw new IllegalArgumentException("maxOrder: " + maxOrder + " (expected: 0-14)");
         }

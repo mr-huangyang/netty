@@ -405,6 +405,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             //为什么是1，2，4，8，16这样的移动？ 比如  0000-1001 通过(x|=x>>1[因为此时只能判断高位只有一位是1])
             // 后变为0000-1100此时高位有2位是1，再运算(x|x>>2),以此类推
 
+            // https://www.geeksforgeeks.org/modify-bit-given-position/ 二进制操作demo
 
             int normalizedCapacity = reqCapacity;
             normalizedCapacity--; //为什么要先减1 ？--> A: 8,16类的本身是2的幂 会得到 16，32而不是它本身

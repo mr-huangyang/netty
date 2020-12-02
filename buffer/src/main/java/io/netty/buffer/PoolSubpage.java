@@ -210,10 +210,9 @@ final class PoolSubpage<T> implements PoolSubpageMetric {
     private int findNextAvail() {
         final long[] bitmap = this.bitmap;
         final int bitmapLength = this.bitmapLength;
-        //为什么不直接用 bitmap.length ???
         for (int i = 0; i < bitmapLength; i++) {
             long bits = bitmap[i];
-            if (~bits != 0) {// bits ==0 表示 可用
+            if (~bits != 0) {// bits ==0 表示此long有可用的bit
                 return findNextAvail0(i, bits);
             }
         }
