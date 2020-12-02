@@ -53,7 +53,8 @@ public class MemoryTest {
     }
 
     private static void test_pagesize() {
-        final ByteBuf buffer = PooledByteBufAllocator.DEFAULT.buffer(1024 * 7);
+        final ByteBuf buffer = PooledByteBufAllocator.DEFAULT.buffer(10 );
+         PooledByteBufAllocator.DEFAULT.buffer(10 );
         buffer.release();
     }
 }
