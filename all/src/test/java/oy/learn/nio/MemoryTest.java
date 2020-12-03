@@ -17,11 +17,12 @@ public class MemoryTest {
     }
 
     public static void test_changeBitValue(int num, int pos, int val) {
+
         //pos 表示二进制位的下标，从0开始
         int mask = 1 << pos;
         int a = num & ~mask; //使 num 目标位变成0,其它位保持不变
-        int b =  (val << pos)  ;
-//        int b =  (val << pos) & mask ;
+//        int b =  (val << pos)  ;
+        int b =  (val << pos) & mask ;
         System.out.println(  a | b  );
     }
 

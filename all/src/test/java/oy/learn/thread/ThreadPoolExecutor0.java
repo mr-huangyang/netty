@@ -1051,6 +1051,7 @@ public class ThreadPoolExecutor0 extends AbstractExecutorService {
     private Runnable getTask() {
         boolean timedOut = false; // Did the last poll() time out?
 
+        //为什么要循环？
         for (; ; ) {
             int c = ctl.get();
             int rs = runStateOf(c);
@@ -1137,7 +1138,18 @@ public class ThreadPoolExecutor0 extends AbstractExecutorService {
         boolean completedAbruptly = true;
         try {
             while (task != null || (task = getTask()) != null) {
+
+                //为什么线程要实现锁？？ 线程状态变化时加锁
+                //这种锁为什么不会导致线程串行？ 线程只在竞争同一把锁时才会串行执行代码，这里runWork方法 worker之间是不存在锁竞争的
+                /*
+                 * 获取互斥锁。
+                 * 在持有互斥锁时，调用线程池shutdown方法不会中断该线程。
+                 * 但是shutdownNow方法无视互斥锁，会中断所有线程。
+                 */
+                //ref: https://www.cnblogs.com/micrari/p/7429364.html
                 w.lock();
+
+
                 // If pool is stopping, ensure thread is interrupted;
                 // if not, ensure thread is not interrupted.  This
                 // requires a recheck in second case to deal with
