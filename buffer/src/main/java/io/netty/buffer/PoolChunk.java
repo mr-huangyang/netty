@@ -139,15 +139,14 @@ final class PoolChunk<T> implements PoolChunkMetric {
     /**
      * 1: 完全二叉树在数组中从下标1开始
      * 2：每一层的首节点下标正好表示该层节点数： 1 2 4 8 16
-     * 3：（层号 -1）^ 2 = 该层节点数 ， 2^（n+1） -1 表示所有节点数
+     * 3：（层号）^ 2 = 该层节点数 ， 2^（n+1） -1 表示所有节点数
      */
     private final byte[] memoryMap; //值会在内存被分配后变更
     private final byte[] depthMap;
 
 
     /**
-     * 存储创建的page: 16M 以8k为-个page ,最多2048个
-     * 每一个 sub page 又被分成若干块
+     * 对 page 进一步的管理 subpage就是对page的细化
      * 关联 {@link PoolArena}中的tiny sub page
      */
     private final PoolSubpage<T>[] subpages;
@@ -167,6 +166,9 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
     private int freeBytes;
 
+    /**
+     * {@link PoolChunkList}.add0()函数
+     */
     PoolChunkList<T> parent;
     //chunk 列表 配合 PoolChunkList 使用
     PoolChunk<T> prev;
@@ -360,6 +362,9 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
         //计算内存所在树的层: 最大层号 - (标准内存大小值对应的log2对数值-最小节点内存的log2对数值)
         //计算normCapacity 所在的层: 假设normCapacity=8K=2^13
+        // 11 = 11 - (13-13)
+        // 10 = 11 - (14-13)
+        //  9 = 11 - (15-13)
         int d = maxOrder - (log2(normCapacity) - pageShifts);
 
         int id = allocateNode(d);

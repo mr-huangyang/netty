@@ -5,12 +5,12 @@ import io.netty.buffer.PooledByteBufAllocator;
 
 public class MemoryTest {
     public static void main(String[] args) {
-        System.out.println(Integer.toBinaryString((1<< Integer.SIZE-3)-1));
+//        System.out.println(Integer.toBinaryString((1<< Integer.SIZE-3)-1));
 //        System.out.println((1L << 31) - 1);
 //        System.out.println(Integer.MAX_VALUE);
 //        System.out.println(Integer.numberOfLeadingZeros(1024));
 //        test_pagesize();
-//        test1();
+        test1();
 
 //        test_changeBitValue(4,1,1);
 

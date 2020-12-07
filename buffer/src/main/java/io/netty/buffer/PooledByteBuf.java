@@ -23,7 +23,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 /**
- * 此类相是一个内存操作接口。操作chunk封装的memory
+ * 此类是一个内存操作接口。操作chunk封装的memory
  * pool chunk 负责申请内存与管理， 此类负责操作 chunk  内存
  * #oy-chunk
  *
