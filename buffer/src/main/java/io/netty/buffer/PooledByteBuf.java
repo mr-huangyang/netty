@@ -60,6 +60,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
     }
 
     /**
+     * #oy-memory-init
      * @param chunk
      * @param handle
      * @param offset    buf关联内存段在连续内存中的偏移量
@@ -190,6 +191,7 @@ abstract class PooledByteBuf<T> extends AbstractReferenceCountedByteBuf {
     protected abstract ByteBuffer newInternalNioBuffer(T memory);
 
     /**
+     * #oy-memory-free
      * 内存释放， buf对象回收
      */
     @Override

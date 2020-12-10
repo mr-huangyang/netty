@@ -27,10 +27,10 @@ public class MemoryTest {
     }
 
     private static void test1() {
-        ByteBuf buffer = PooledByteBufAllocator.DEFAULT.buffer(1024 * 4);
-//        for(int i = 0;i <3 ; i++){
-//            PooledByteBufAllocator.DEFAULT.buffer(7000);
-//        }
+        ByteBuf buffer = PooledByteBufAllocator.DEFAULT.buffer(7000);
+        for(int i = 0;i <3 ; i++){
+            PooledByteBufAllocator.DEFAULT.buffer(7000);
+        }
 //        PooledByteBufAllocator.DEFAULT.buffer(510);
 //        PooledByteBufAllocator.DEFAULT.buffer(510);
 //        PooledByteBufAllocator.DEFAULT.buffer(510);
@@ -47,7 +47,7 @@ public class MemoryTest {
 //        PooledByteBufAllocator.DEFAULT.buffer(510);
 //        PooledByteBufAllocator.DEFAULT.buffer(510);
 //        PooledByteBufAllocator.DEFAULT.buffer(510);
-        buffer.writeByte(10);
+        buffer.writeInt(10);
 //        buffer.writeByte(11) ;
 //        buffer0.writeByte(10);
         buffer.release();

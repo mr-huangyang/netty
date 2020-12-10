@@ -36,6 +36,7 @@ import static java.lang.Math.max;
  * <a href="https://my.oschina.net/keking/blog/3079698">数字计算机表示-2</a>
  * <a href="https://miaowenting.site/2020/02/09/Netty%E5%86%85%E5%AD%98%E6%B1%A0%E5%8C%96%E7%AE%A1%E7%90%86/">Netty内存知识</a>
  * <a href="http://huzb.me/2019/10/13/netty%E6%BA%90%E7%A0%81%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%E2%80%94%E2%80%94%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D/">Netty内存知识</a>
+ * <a href="https://juejin.cn/post/6844904034801811469">Chunk图文并茂</a>
  *
  * 代表一块大的内存区，划分成多个内存块（sub page）
  *
@@ -312,6 +313,13 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         allocationsHuge.increment();
     }
 
+    /**
+     * #oy-memory-free
+     * @param chunk
+     * @param handle
+     * @param normCapacity
+     * @param cache
+     */
     void free(PoolChunk<T> chunk, long handle, int normCapacity, PoolThreadCache cache) {
         if (chunk.unpooled) {
             int size = chunk.chunkSize();
@@ -319,7 +327,10 @@ abstract class PoolArena<T> implements PoolArenaMetric {
             activeBytesHuge.add(-size);
             deallocationsHuge.increment();
         } else {
+
             SizeClass sizeClass = sizeClass(normCapacity);
+
+            //#oy-memory-free  缓存内存
             if (cache != null && cache.add(this, chunk, handle, normCapacity, sizeClass)) {
                 // cached so not free it.
                 return;

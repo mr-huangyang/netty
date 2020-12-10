@@ -102,6 +102,12 @@ final class PoolChunkList<T> implements PoolChunkListMetric {
         }
     }
 
+    /**
+     * #oy-memory-free
+     * @param chunk
+     * @param handle
+     * @return
+     */
     boolean free(PoolChunk<T> chunk, long handle) {
         chunk.free(handle);
         if (chunk.usage() < minUsage) {
