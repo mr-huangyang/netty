@@ -330,7 +330,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
             SizeClass sizeClass = sizeClass(normCapacity);
 
-            //#oy-memory-free  缓存内存
+            //#oy-memory-cache  缓存内存
             if (cache != null && cache.add(this, chunk, handle, normCapacity, sizeClass)) {
                 // cached so not free it.
                 return;

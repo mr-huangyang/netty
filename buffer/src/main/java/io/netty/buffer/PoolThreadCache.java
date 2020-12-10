@@ -30,10 +30,14 @@ import java.nio.ByteBuffer;
 import java.util.Queue;
 
 /**
+ * 内存节点用过并free后缓存到线程中提升使用效率，避免再次通过分配算法再分配
  * Acts a Thread cache for allocations. This implementation is moduled after
  * <a href="http://people.freebsd.org/~jasone/jemalloc/bsdcan2006/jemalloc.pdf">jemalloc</a> and the descripted
  * technics of <a href="https://www.facebook.com/notes/facebook-engineering/scalable-memory-allocation-using-jemalloc/
  * 480222803919">Scalable memory allocation using jemalloc</a>.
+ *
+ * <a href="https://www.jianshu.com/p/004aa3a8cd5f">解说</>
+ *
  */
 final class PoolThreadCache {
 
