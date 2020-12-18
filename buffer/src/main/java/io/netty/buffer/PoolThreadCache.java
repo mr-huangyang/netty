@@ -366,6 +366,10 @@ final class PoolThreadCache {
         }
     }
 
+    /**
+     * 内部维护一个队列，缓存固定大小的内存
+     * @param <T>
+     */
     private abstract static class MemoryRegionCache<T> {
         private final int size;
         private final Queue<Entry<T>> queue;
