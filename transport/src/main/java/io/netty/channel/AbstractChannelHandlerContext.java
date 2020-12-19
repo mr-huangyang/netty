@@ -39,8 +39,11 @@ abstract class AbstractChannelHandlerContext extends DefaultAttributeMap
         implements ChannelHandlerContext, ResourceLeakHint {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractChannelHandlerContext.class);
+
+    // handler context 形成一个连表结构
     volatile AbstractChannelHandlerContext next;
     volatile AbstractChannelHandlerContext prev;
+    private final DefaultChannelPipeline pipeline;
 
     private static final AtomicIntegerFieldUpdater<AbstractChannelHandlerContext> HANDLER_STATE_UPDATER;
 
@@ -74,7 +77,6 @@ abstract class AbstractChannelHandlerContext extends DefaultAttributeMap
 
     private final boolean inbound;
     private final boolean outbound;
-    private final DefaultChannelPipeline pipeline;
     private final String name;
     private final boolean ordered;
 

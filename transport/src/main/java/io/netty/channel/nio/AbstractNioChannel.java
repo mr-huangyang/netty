@@ -419,7 +419,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     }
 
     /**
-     * #oy: 注册java nio 读事件
+     * #oy-read: 注册java nio 读事件
      * @throws Exception
      */
     @Override
@@ -429,7 +429,6 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         if (!selectionKey.isValid()) {
             return;
         }
-
         readPending = true;
         //#oy: 研究 java nio api
         final int interestOps = selectionKey.interestOps();
