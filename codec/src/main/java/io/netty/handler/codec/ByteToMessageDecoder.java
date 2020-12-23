@@ -263,12 +263,14 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
             } finally {
                 if (cumulation != null && !cumulation.isReadable()) {
                     numReads = 0;
+                    //内存释放
                     cumulation.release();
                     cumulation = null;
                 } else if (++ numReads >= discardAfterReads) {
                     // We did enough reads already try to discard some bytes so we not risk to see a OOME.
                     // See https://github.com/netty/netty/issues/4275
                     numReads = 0;
+                    //内存回收
                     discardSomeReadBytes();
                 }
 
@@ -402,6 +404,7 @@ public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter 
             while (in.isReadable()) {
                 int outSize = out.size();
 
+                //已解析到一个完事的frame
                 if (outSize > 0) {
                     fireChannelRead(ctx, out, outSize);
                     out.clear();
