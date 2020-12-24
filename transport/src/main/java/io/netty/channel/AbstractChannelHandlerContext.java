@@ -82,6 +82,9 @@ abstract class AbstractChannelHandlerContext extends DefaultAttributeMap
 
     // Will be set to null if no child executor should be used, otherwise it will be set to the
     // child executor.
+    /**
+     * {@link DefaultChannelPipeline}.childExecutor(EventExecutorGroup group)
+     */
     final EventExecutor executor;
     private ChannelFuture succeededFuture;
 

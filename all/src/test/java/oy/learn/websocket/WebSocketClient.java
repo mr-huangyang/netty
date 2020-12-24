@@ -139,7 +139,7 @@ public class WebSocketClient {
 //        System.setProperty("socksProxyHost", "127.0.0.1");
 //        System.setProperty("socksProxyPort", "1086");
 
-//        okex();
+        okex();
 //        zb();
 //        coinex();
 //        bitfinex();

@@ -39,7 +39,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * <br/>
  * c: event executor可能会被多个线程执行
  *
- * #oy-thread 执行任务逻辑的类
+ * #oy-thread 在channel被register的时候调用execute方法启动线程
  *
  *
  */
