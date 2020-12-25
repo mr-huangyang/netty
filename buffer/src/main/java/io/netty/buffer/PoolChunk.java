@@ -567,9 +567,9 @@ final class PoolChunk<T> implements PoolChunkMetric {
     private int runOffset(int id) {
         // represents the 0-based offset in #bytes from start of the byte-array chunk
         // id ^ (1 << depth(id));
-        //1<<depth(id) = 2^d = ...000100...
+        //1<<depth(id) = 2^d = 表示当层的节点个数 = 也是该层的首节点下标数 = ...000100...
         //同一层节点下标二进制位数一致都以..001开头
-        int shift = id ^ 1 << depth(id);
+        int shift = id ^ 1 << depth(id); // 等于 id-( 1<< depth(id)  )
         return shift * runLength(id);
     }
 

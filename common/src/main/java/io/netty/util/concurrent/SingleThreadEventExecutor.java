@@ -91,10 +91,13 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     }
 
     /**
-     *
+     * 线程任务队列
      */
     private final Queue<Runnable> taskQueue;
 
+    /**
+     * loop绑定的线程
+     */
     private volatile Thread thread;
     @SuppressWarnings("unused")
     private volatile ThreadProperties threadProperties;
@@ -874,6 +877,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         executor.execute(new Runnable() {
             @Override
             public void run() {
+                //loop 绑定线程
                 thread = Thread.currentThread();
                 if (interrupted) {
                     thread.interrupt();

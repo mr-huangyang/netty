@@ -35,6 +35,9 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import java.net.SocketAddress;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+/**
+ * 每个context对象绑定了一个executor,executor有可能是IO线程有可能是业务线程
+ */
 abstract class AbstractChannelHandlerContext extends DefaultAttributeMap
         implements ChannelHandlerContext, ResourceLeakHint {
 
@@ -124,7 +127,7 @@ abstract class AbstractChannelHandlerContext extends DefaultAttributeMap
     }
 
     /**
-     * 如果在add*方法时未设置executor则使用channel().eventLoop()
+     * 如果在 pipeline.add*方法时未设置executor则使用channel().eventLoop()
      * @return
      */
     @Override
