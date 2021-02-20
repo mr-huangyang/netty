@@ -158,6 +158,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
     private final int subpageOverflowMask;
     //leaf node size : default  8k
     private final int pageSize;
+    //smallest page pow: 8K=2^13 pageShifts=13
     private final int pageShifts;
     private final int maxOrder;
     private final int chunkSize;
@@ -265,7 +266,6 @@ final class PoolChunk<T> implements PoolChunkMetric {
     long allocate(int normCapacity) {
         //为何不用 >= 运算 ？ 性能低？
         if ((normCapacity & subpageOverflowMask) != 0) { // >= pageSize
-            // > pagesize 的直接定位到内存节点
             return allocateRun(normCapacity);
         } else {
             return allocateSubpage(normCapacity);

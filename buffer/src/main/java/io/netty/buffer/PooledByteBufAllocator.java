@@ -73,7 +73,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
             validateAndCalculatePageShifts(defaultPageSize);
         } catch (Throwable t) {
             pageSizeFallbackCause = t;
-            defaultPageSize = 8192;
+            defaultPageSize = 8192; //8k
         }
         DEFAULT_PAGE_SIZE = defaultPageSize;
 
@@ -153,8 +153,7 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator {
         }
     }
 
-    public static final PooledByteBufAllocator DEFAULT =
-            new PooledByteBufAllocator(PlatformDependent.directBufferPreferred());
+    public static final PooledByteBufAllocator DEFAULT = new PooledByteBufAllocator(PlatformDependent.directBufferPreferred());
 
     /**
      * 重要属性
