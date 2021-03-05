@@ -22,6 +22,8 @@ package io.netty.buffer;
  *     <li><a href="https://www.cnblogs.com/wuzhenzhao/p/11304496.html">文章-1</a></li>
  *     <li><a href="https://blog.csdn.net/u010412719/article/details/78242224">文章-2</a></li>
  * </ul>
+ *  subpage 是对 page的再一次逻辑划分建模。page=8k,按16byte切分成512个块。每一块是否使用通过一个bit位来标记
+ *  bit位 使用 long[8]数组表示
  *
  * @param <T>
  */

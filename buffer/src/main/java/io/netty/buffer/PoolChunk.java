@@ -159,11 +159,11 @@ final class PoolChunk<T> implements PoolChunkMetric {
     //leaf node size : default  8k
     private final int pageSize;
     //smallest page pow: 8K=2^13 pageShifts=13
-    private final int pageShifts;
-    private final int maxOrder;
+    private final int pageShifts; //default 13
+    private final int maxOrder; // default 11
     private final int chunkSize;
     private final int log2ChunkSize;
-    private final int maxSubpageAllocs;
+    private final int maxSubpageAllocs; // default 2048
     /**
      * Used to mark memory as unusable
      */
@@ -358,6 +358,8 @@ final class PoolChunk<T> implements PoolChunkMetric {
                 val = value(id); //id越界？？
             }
         }
+
+        //找到一个可用的节点
 //        System.out.println(id);
         byte value = value(id);
         assert value == d && (id & initial) == 1 << d : String.format("val = %d, id & initial = %d, d = %d",
@@ -419,6 +421,8 @@ final class PoolChunk<T> implements PoolChunkMetric {
             final int pageSize = this.pageSize;
 
             freeBytes -= pageSize;
+
+
             //初始化 page
             int subpageIdx = subpageIdx(id);
             PoolSubpage<T> subpage = subpages[subpageIdx];
