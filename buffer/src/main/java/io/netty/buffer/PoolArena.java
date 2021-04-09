@@ -265,6 +265,8 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
         // 处理正常情况下的内存分配
         if (normCapacity <= chunkSize) {
+
+            //先从缓存中分配
             if (cache.allocateNormal(this, buf, reqCapacity, normCapacity)) {
                 // was able to allocate out of the cache so move on
                 return;
@@ -280,7 +282,7 @@ abstract class PoolArena<T> implements PoolArenaMetric {
     }
 
     /**
-     * 分配标准内存
+     * 分配标准内存,此方法是一个同步方法
      * @param buf
      * @param reqCapacity
      * @param normCapacity
@@ -303,6 +305,8 @@ abstract class PoolArena<T> implements PoolArenaMetric {
         assert handle > 0;
 
         c.initBuf(buf, handle, reqCapacity);
+
+        //将chunk添加到list中管理
         qInit.add(c);
     }
 
