@@ -767,7 +767,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
             // ?# task 容量如何控制，会不会占用大量内存，有没有拒绝策略
             addTask(task);
         } else {
-            //不是 loop 线程 则启动一个新的线程执行
+            //不是 loop 线程 则启动event loop的线程执行
             startThread();
             addTask(task);
             if (isShutdown() && removeTask(task)) {
