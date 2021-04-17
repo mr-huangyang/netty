@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  * #oy-w: 注意此类可能会导致内存溢出
  *      1:由于ChannelOutboundBuffer是无界的链表，当应用层写入数据的速度 > Socket的发送速度时，会导致ChannelOutboundBuffer无限增长，产生OOM
  *      2: 必须设置合适的水位与流控
+ *      3： 调用write 写入数据时一定要结合 isWritable方法
  */
 public final class ChannelOutboundBuffer {
 
@@ -178,7 +179,7 @@ public final class ChannelOutboundBuffer {
         }
 
         long newWriteBufferSize = TOTAL_PENDING_SIZE_UPDATER.addAndGet(this, size);
-        //设置不可写
+        //设置不可写，默认64k
         if (newWriteBufferSize > channel.config().getWriteBufferHighWaterMark()) {
             setUnwritable(invokeLater);
         }
