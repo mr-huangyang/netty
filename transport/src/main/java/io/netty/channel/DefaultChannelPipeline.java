@@ -1325,6 +1325,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
 
         @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+            //#oy:write 将数据写入nio的入口
             unsafe.write(msg, promise);
         }
 

@@ -170,6 +170,11 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
         }
     }
 
+    /**
+     * #oy-write: 真正写网络数据
+     * @param in
+     * @throws Exception
+     */
     @Override
     protected void doWrite(ChannelOutboundBuffer in) throws Exception {
         int writeSpinCount = -1;
@@ -198,7 +203,10 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
                     writeSpinCount = config().getWriteSpinCount();
                 }
                 for (int i = writeSpinCount - 1; i >= 0; i --) {
+
+                    //写入nio流
                     int localFlushedAmount = doWriteBytes(buf);
+
                     if (localFlushedAmount == 0) {
                         setOpWrite = true;
                         break;

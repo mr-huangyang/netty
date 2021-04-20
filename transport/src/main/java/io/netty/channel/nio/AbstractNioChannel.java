@@ -432,7 +432,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         readPending = true;
         //#oy: 研究 java nio api
         final int interestOps = selectionKey.interestOps();
-        if ((interestOps & readInterestOp) == 0) {
+        if ((interestOps & readInterestOp) == 0) {//表示未注册读事件
             selectionKey.interestOps(interestOps | readInterestOp);
         }
     }
