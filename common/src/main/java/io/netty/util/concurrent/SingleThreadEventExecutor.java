@@ -91,7 +91,10 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     }
 
     /**
-     * 线程任务队列
+     * 线程任务队列:默认使用 blocking queue
+     *  nio loop 使用 {@link  org.jctools.queues.MpscChunkedArrayQueue}
+     *  ref: https://www.jianshu.com/p/c66168bc5aff
+     *
      */
     private final Queue<Runnable> taskQueue;
 
@@ -219,6 +222,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
      * @see {@link Queue#poll()}
      */
     protected Runnable pollTask() {
+        //只能在loop线程中获取任务
         assert inEventLoop();
         return pollTaskFrom(taskQueue);
     }
@@ -869,7 +873,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     }
 
     /**
-     * 线程启动，开始loop
+     * #oy-loop-thread 线程启动，开始loop
      */
     private void doStartThread() {
         assert thread == null;
