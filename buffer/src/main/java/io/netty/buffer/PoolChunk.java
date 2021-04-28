@@ -110,20 +110,20 @@ package io.netty.buffer;
  * <p>
  * 1: PoolChunk 代表向系统申请的一块内存，在内部会将内存组织成一棵树
  * 2: chunk 本身是一个连表结点 {@link PoolChunkList}
- * <p>
- * <p>
- * o      depth=0  id = 1
- * o   o    depth=1  id = 2 = 2^1
- * o  o o o   depth=2  id = 4 = 2^2
- * depth=3  id = 8 = 2^3
- * depth=4  id = 16 = 2^4
- * .....
- * depth=9 id = 2048 = 2^9   size=32k=2^15
- * depth=10 id = 2048 = 2^10   size=16k=2^14
- * depth=11 id = 2048 = 2^11   size=8k=2^13
- * <p>
- * 1:每层节点数等于首节点的下标
- * <p>
+ *
+ *
+ *                      o      depth=0  id = 1
+ *                    o   o    depth=1  id = 2 = 2^1
+ *                  o  o o o   depth=2  id = 4 = 2^2
+ *                             depth=3  id = 8 = 2^3
+ *                             depth=4  id = 16 = 2^4
+ *                             .....
+ *                             depth=9 id = 2048 = 2^9   size=32k=2^15
+ *                             depth=10 id = 2048 = 2^10   size=16k=2^14
+ *                             depth=11 id = 2048 = 2^11   size=8k=2^13
+ *
+ *      1:每层节点数等于首节点的下标
+ *
  * 3: 2个重要的方法 allocate  initBuf
  */
 final class PoolChunk<T> implements PoolChunkMetric {
