@@ -93,6 +93,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     /**
      * 线程任务队列:默认使用 blocking queue
      *  nio loop 使用 {@link  org.jctools.queues.MpscChunkedArrayQueue}
+     *  非定长的队列，适合无法预测队列长度的场景。基于数组+链表的结构，不会像链表那样分配过多的Node，吞吐量比传统的链表高
      *  ref: https://www.jianshu.com/p/c66168bc5aff
      *
      */
